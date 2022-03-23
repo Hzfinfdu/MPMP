@@ -46,7 +46,8 @@ from transformers.modeling_outputs import (
 from transformers.modeling_utils import PreTrainedModel
 from transformers.utils import logging
 from transformers import BartConfig as CPTConfig
-from transformers import BertModel, BertConfig
+from transformers import BertConfig
+from modeling_bert import BertModel
 
 from torch.nn import LayerNorm
 
@@ -881,6 +882,7 @@ class CPTModel(CPTPretrainedModel):
         output_attentions=None,
         output_hidden_states=None,
         return_dict=None,
+        prompt_embedding=None,
     ):
 
         # different to other models, CPT automatically creates decoder_input_ids from
@@ -911,6 +913,7 @@ class CPTModel(CPTPretrainedModel):
                 output_attentions=output_attentions,
                 output_hidden_states=True,
                 return_dict=return_dict,
+                prompt_embedding=prompt_embedding,
             )
         # If the user passed a tuple for encoder_outputs, we wrap it in a BaseModelOutput when return_dict=True
         elif return_dict and isinstance(encoder_outputs, (tuple, list)):
@@ -1335,6 +1338,7 @@ class CPTForQuestionAnswering(CPTPretrainedModel):
         output_attentions=None,
         output_hidden_states=None,
         return_dict=None,
+        prompt_embedding=None,
     ):
         r"""
         start_positions (:obj:`torch.LongTensor` of shape :obj:`(batch_size,)`, `optional`):
@@ -1348,10 +1352,10 @@ class CPTForQuestionAnswering(CPTPretrainedModel):
         """
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
         
-        if input_ids is None and inputs_embeds is not None:
-            raise NotImplementedError(
-                f"Passing input embeddings is currently not supported for {self.__class__.__name__}"
-            )
+        # if input_ids is None and inputs_embeds is not None:
+        #     raise NotImplementedError(
+        #         f"Passing input embeddings is currently not supported for {self.__class__.__name__}"
+        #     )
 
         outputs = self.model(
             input_ids,
@@ -1367,6 +1371,7 @@ class CPTForQuestionAnswering(CPTPretrainedModel):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=True,
+            prompt_embedding=prompt_embedding,
         )
 
         hidden_states = outputs.last_hidden_state

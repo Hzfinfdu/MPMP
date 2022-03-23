@@ -57,7 +57,6 @@ _CHECKPOINT_FOR_DOC = "fnlp/cpt-large"
 _CONFIG_FOR_DOC = "CPTConfig"
 _TOKENIZER_FOR_DOC = "CPTTokenizer"
 
-
 CPT_PRETRAINED_MODEL_ARCHIVE_LIST = [
     "fnlp/cpt-large",
 ]
@@ -106,14 +105,17 @@ def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] 
 
     return inverted_mask.masked_fill(inverted_mask.bool(), torch.finfo(dtype).min)
 
+
 def attention_mask_func(attention_scores, attention_mask):
     return attention_scores + attention_mask
+
 
 def init_method(std):
     def init_(tensor):
         return torch.nn.init.normal_(tensor, mean=0.0, std=std)
 
     return init_
+
 
 class CPTLearnedPositionalEmbedding(nn.Embedding):
     """
@@ -139,12 +141,12 @@ class CPTAttention(nn.Module):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
 
     def __init__(
-        self,
-        embed_dim: int,
-        num_heads: int,
-        dropout: float = 0.0,
-        is_decoder: bool = False,
-        bias: bool = True,
+            self,
+            embed_dim: int,
+            num_heads: int,
+            dropout: float = 0.0,
+            is_decoder: bool = False,
+            bias: bool = True,
     ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -152,7 +154,7 @@ class CPTAttention(nn.Module):
         self.dropout = dropout
         self.head_dim = embed_dim // num_heads
         assert (
-            self.head_dim * num_heads == self.embed_dim
+                self.head_dim * num_heads == self.embed_dim
         ), f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim} and `num_heads`: {num_heads})."
         self.scaling = self.head_dim ** -0.5
         self.is_decoder = is_decoder
@@ -162,18 +164,17 @@ class CPTAttention(nn.Module):
         self.q_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
 
-
     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
 
     def forward(
-        self,
-        hidden_states: torch.Tensor,
-        key_value_states: Optional[torch.Tensor] = None,
-        past_key_value: Optional[Tuple[torch.Tensor]] = None,
-        attention_mask: Optional[torch.Tensor] = None,
-        layer_head_mask: Optional[torch.Tensor] = None,
-        output_attentions: bool = False,
+            self,
+            hidden_states: torch.Tensor,
+            key_value_states: Optional[torch.Tensor] = None,
+            past_key_value: Optional[Tuple[torch.Tensor]] = None,
+            attention_mask: Optional[torch.Tensor] = None,
+            layer_head_mask: Optional[torch.Tensor] = None,
+            output_attentions: bool = False,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
         """Input shape: Batch x Time x Channel"""
 
@@ -256,7 +257,7 @@ class CPTAttention(nn.Module):
             attn_weights = attn_weights_reshaped.view(bsz * self.num_heads, tgt_len, src_len)
         else:
             attn_weights_reshaped = None
-        
+
         # with mpu.get_cuda_rng_tracker().fork():
         attn_probs = F.dropout(attn_weights, p=self.dropout, training=self.training)
 
@@ -270,13 +271,14 @@ class CPTAttention(nn.Module):
 
         attn_output = (
             attn_output.view(bsz, self.num_heads, tgt_len, self.head_dim)
-            .transpose(1, 2)
-            .reshape(bsz, tgt_len, embed_dim)
+                .transpose(1, 2)
+                .reshape(bsz, tgt_len, embed_dim)
         )
 
         attn_output = self.out_proj(attn_output)
 
         return attn_output, attn_weights_reshaped, past_key_value
+
 
 class CPTDecoderLayer(nn.Module):
     def __init__(self, config: CPTConfig):
@@ -306,16 +308,16 @@ class CPTDecoderLayer(nn.Module):
         self.final_layer_norm = LayerNorm(self.embed_dim)
 
     def forward(
-        self,
-        hidden_states: torch.Tensor,
-        attention_mask: Optional[torch.Tensor] = None,
-        encoder_hidden_states: Optional[torch.Tensor] = None,
-        encoder_attention_mask: Optional[torch.Tensor] = None,
-        layer_head_mask: Optional[torch.Tensor] = None,
-        encoder_layer_head_mask: Optional[torch.Tensor] = None,
-        past_key_value: Optional[Tuple[torch.Tensor]] = None,
-        output_attentions: Optional[bool] = False,
-        use_cache: Optional[bool] = True,
+            self,
+            hidden_states: torch.Tensor,
+            attention_mask: Optional[torch.Tensor] = None,
+            encoder_hidden_states: Optional[torch.Tensor] = None,
+            encoder_attention_mask: Optional[torch.Tensor] = None,
+            layer_head_mask: Optional[torch.Tensor] = None,
+            encoder_layer_head_mask: Optional[torch.Tensor] = None,
+            past_key_value: Optional[Tuple[torch.Tensor]] = None,
+            output_attentions: Optional[bool] = False,
+            use_cache: Optional[bool] = True,
     ):
         """
         Args:
@@ -398,11 +400,11 @@ class CPTClassificationHead(nn.Module):
     """Head for sentence-level classification tasks."""
 
     def __init__(
-        self,
-        input_dim: int,
-        inner_dim: int,
-        num_classes: int,
-        pooler_dropout: float,
+            self,
+            input_dim: int,
+            inner_dim: int,
+            num_classes: int,
+            pooler_dropout: float,
     ):
         super().__init__()
         self.dense = nn.Linear(input_dim, inner_dim)
@@ -442,6 +444,7 @@ class CPTPretrainedModel(PreTrainedModel):
             "input_ids": input_ids,
         }
         return dummy_inputs
+
 
 CPT_START_DOCSTRING = r"""
     This model inherits from :class:`~transformers.PreTrainedModel`. Check the superclass documentation for the generic
@@ -548,6 +551,7 @@ CPT_INPUTS_DOCSTRING = r"""
             Whether or not to return a :class:`~transformers.file_utils.ModelOutput` instead of a plain tuple.
 """
 
+
 class CPTDecoder(CPTPretrainedModel):
     """
     Transformer decoder consisting of *config.decoder_layers* layers. Each layer is a :class:`CPTDecoderLayer`
@@ -604,19 +608,19 @@ class CPTDecoder(CPTPretrainedModel):
         return combined_attention_mask
 
     def forward(
-        self,
-        input_ids=None,
-        attention_mask=None,
-        encoder_hidden_states=None,
-        encoder_attention_mask=None,
-        head_mask=None,
-        encoder_head_mask=None,
-        past_key_values=None,
-        inputs_embeds=None,
-        use_cache=None,
-        output_attentions=None,
-        output_hidden_states=None,
-        return_dict=None,
+            self,
+            input_ids=None,
+            attention_mask=None,
+            encoder_hidden_states=None,
+            encoder_attention_mask=None,
+            head_mask=None,
+            encoder_head_mask=None,
+            past_key_values=None,
+            inputs_embeds=None,
+            use_cache=None,
+            output_attentions=None,
+            output_hidden_states=None,
+            return_dict=None,
     ):
         r"""
         Args:
@@ -850,10 +854,11 @@ class CPTModel(CPTPretrainedModel):
             def __init__(self, encoder):
                 super().__init__()
                 self.encoder = encoder
-            
+
             def forward(self, *args, **kwargs):
-                kwargs['output_hidden_states'] = True                
+                kwargs['output_hidden_states'] = True
                 return self.encoder(*args, **kwargs)
+
         return _Encoder(self.encoder)
 
     def get_decoder(self):
@@ -867,22 +872,22 @@ class CPTModel(CPTPretrainedModel):
         config_class=_CONFIG_FOR_DOC,
     )
     def forward(
-        self,
-        input_ids=None,
-        attention_mask=None,
-        decoder_input_ids=None,
-        decoder_attention_mask=None,
-        head_mask=None,
-        decoder_head_mask=None,
-        encoder_outputs=None,
-        past_key_values=None,
-        inputs_embeds=None,
-        decoder_inputs_embeds=None,
-        use_cache=None,
-        output_attentions=None,
-        output_hidden_states=None,
-        return_dict=None,
-        prompt_embedding=None,
+            self,
+            input_ids=None,
+            attention_mask=None,
+            decoder_input_ids=None,
+            decoder_attention_mask=None,
+            head_mask=None,
+            decoder_head_mask=None,
+            encoder_outputs=None,
+            past_key_values=None,
+            inputs_embeds=None,
+            decoder_inputs_embeds=None,
+            use_cache=None,
+            output_attentions=None,
+            output_hidden_states=None,
+            return_dict=None,
+            prompt_embedding=None,
     ):
 
         # different to other models, CPT automatically creates decoder_input_ids from
@@ -1008,22 +1013,22 @@ class CPTForConditionalGeneration(CPTPretrainedModel):
     @add_start_docstrings_to_model_forward(CPT_INPUTS_DOCSTRING)
     @replace_return_docstrings(output_type=Seq2SeqLMOutput, config_class=_CONFIG_FOR_DOC)
     def forward(
-        self,
-        input_ids=None,
-        attention_mask=None,
-        decoder_input_ids=None,
-        decoder_attention_mask=None,
-        head_mask=None,
-        decoder_head_mask=None,
-        encoder_outputs=None,
-        past_key_values=None,
-        inputs_embeds=None,
-        decoder_inputs_embeds=None,
-        labels=None,
-        use_cache=None,
-        output_attentions=None,
-        output_hidden_states=None,
-        return_dict=None,
+            self,
+            input_ids=None,
+            attention_mask=None,
+            decoder_input_ids=None,
+            decoder_attention_mask=None,
+            head_mask=None,
+            decoder_head_mask=None,
+            encoder_outputs=None,
+            past_key_values=None,
+            inputs_embeds=None,
+            decoder_inputs_embeds=None,
+            labels=None,
+            use_cache=None,
+            output_attentions=None,
+            output_hidden_states=None,
+            return_dict=None,
     ):
         r"""
         labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size, sequence_length)`, `optional`):
@@ -1081,14 +1086,14 @@ class CPTForConditionalGeneration(CPTPretrainedModel):
         )
 
     def prepare_inputs_for_generation(
-        self,
-        decoder_input_ids,
-        past=None,
-        attention_mask=None,
-        head_mask=None,
-        use_cache=None,
-        encoder_outputs=None,
-        **kwargs
+            self,
+            decoder_input_ids,
+            past=None,
+            attention_mask=None,
+            head_mask=None,
+            use_cache=None,
+            encoder_outputs=None,
+            **kwargs
     ):
         # cut decoder_input_ids if past is used
         if past is not None:
@@ -1103,15 +1108,15 @@ class CPTForConditionalGeneration(CPTPretrainedModel):
             "head_mask": head_mask,
             "use_cache": use_cache,  # change this to avoid caching (presumably for debugging)
         }
-    
+
     @staticmethod
     def _expand_inputs_for_generation(
-        input_ids: torch.LongTensor,
-        expand_size: int = 1,
-        is_encoder_decoder: bool = False,
-        attention_mask: torch.LongTensor = None,
-        encoder_outputs = None,
-        **model_kwargs,
+            input_ids: torch.LongTensor,
+            expand_size: int = 1,
+            is_encoder_decoder: bool = False,
+            attention_mask: torch.LongTensor = None,
+            encoder_outputs=None,
+            **model_kwargs,
     ):
         expanded_return_idx = (
             torch.arange(input_ids.shape[0]).view(-1, 1).repeat(1, expand_size).view(-1).to(input_ids.device)
@@ -1129,7 +1134,7 @@ class CPTForConditionalGeneration(CPTPretrainedModel):
             assert encoder_outputs is not None
             device = encoder_outputs.last_hidden_state.device
             encoder_outputs["hidden_states"] = tuple(h.index_select(0, expanded_return_idx.to(device)) \
-                 for h in encoder_outputs["hidden_states"])
+                                                     for h in encoder_outputs["hidden_states"])
             model_kwargs["encoder_outputs"] = encoder_outputs
         return input_ids, model_kwargs
 
@@ -1190,21 +1195,21 @@ class CPTForSequenceClassification(CPTPretrainedModel):
         config_class=_CONFIG_FOR_DOC,
     )
     def forward(
-        self,
-        input_ids=None,
-        attention_mask=None,
-        decoder_input_ids=None,
-        decoder_attention_mask=None,
-        head_mask=None,
-        decoder_head_mask=None,
-        encoder_outputs=None,
-        inputs_embeds=None,
-        decoder_inputs_embeds=None,
-        labels=None,
-        use_cache=None,
-        output_attentions=None,
-        output_hidden_states=None,
-        return_dict=None,
+            self,
+            input_ids=None,
+            attention_mask=None,
+            decoder_input_ids=None,
+            decoder_attention_mask=None,
+            head_mask=None,
+            decoder_head_mask=None,
+            encoder_outputs=None,
+            inputs_embeds=None,
+            decoder_inputs_embeds=None,
+            labels=None,
+            use_cache=None,
+            output_attentions=None,
+            output_hidden_states=None,
+            return_dict=None,
     ):
         r"""
         labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size,)`, `optional`):
@@ -1245,8 +1250,8 @@ class CPTForSequenceClassification(CPTPretrainedModel):
         if len(torch.unique(eos_mask.sum(1))) > 1:
             raise ValueError("All examples must have the same number of <eos> tokens.")
         dec_rep = hidden_states[eos_mask, :].view(hidden_states.size(0), -1, hidden_states.size(-1))[
-            :, -1, :
-        ]
+                  :, -1, :
+                  ]
 
         if self.cls_mode == 1:
             logits = self.cls_head(enc_rep)
@@ -1257,7 +1262,7 @@ class CPTForSequenceClassification(CPTPretrainedModel):
             logits = self.cls_head(rep)
         else:
             raise NotImplementedError
-        
+
         loss = None
         if labels is not None:
             loss_fct = CrossEntropyLoss()
@@ -1322,23 +1327,23 @@ class CPTForQuestionAnswering(CPTPretrainedModel):
         config_class=_CONFIG_FOR_DOC,
     )
     def forward(
-        self,
-        input_ids=None,
-        attention_mask=None,
-        decoder_input_ids=None,
-        decoder_attention_mask=None,
-        head_mask=None,
-        decoder_head_mask=None,
-        encoder_outputs=None,
-        start_positions=None,
-        end_positions=None,
-        inputs_embeds=None,
-        decoder_inputs_embeds=None,
-        use_cache=None,
-        output_attentions=None,
-        output_hidden_states=None,
-        return_dict=None,
-        prompt_embedding=None,
+            self,
+            input_ids=None,
+            attention_mask=None,
+            decoder_input_ids=None,
+            decoder_attention_mask=None,
+            head_mask=None,
+            decoder_head_mask=None,
+            encoder_outputs=None,
+            start_positions=None,
+            end_positions=None,
+            inputs_embeds=None,
+            decoder_inputs_embeds=None,
+            use_cache=None,
+            output_attentions=None,
+            output_hidden_states=None,
+            return_dict=None,
+            prompt_embedding=None,
     ):
         r"""
         start_positions (:obj:`torch.LongTensor` of shape :obj:`(batch_size,)`, `optional`):
@@ -1351,7 +1356,7 @@ class CPTForQuestionAnswering(CPTPretrainedModel):
             are not taken into account for computing the loss.
         """
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-        
+
         # if input_ids is None and inputs_embeds is not None:
         #     raise NotImplementedError(
         #         f"Passing input embeddings is currently not supported for {self.__class__.__name__}"
@@ -1410,9 +1415,9 @@ class CPTForQuestionAnswering(CPTPretrainedModel):
 
         if not return_dict:
             output = (
-                start_logits,
-                end_logits,
-            ) + outputs[1:]
+                         start_logits,
+                         end_logits,
+                     ) + outputs[1:]
             return ((total_loss,) + output) if total_loss is not None else output
 
         return Seq2SeqQuestionAnsweringModelOutput(
@@ -1427,7 +1432,7 @@ class CPTForQuestionAnswering(CPTPretrainedModel):
             encoder_hidden_states=outputs.encoder_hidden_states,
             encoder_attentions=outputs.encoder_attentions,
         )
-        
+
 
 class CPTForMaskedLM(CPTPretrainedModel):
     _keys_to_ignore_on_load_missing = [
@@ -1436,6 +1441,7 @@ class CPTForMaskedLM(CPTPretrainedModel):
         r"decoder\.version",
         r"lm_head\.weight",
     ]
+
     def __init__(self, config, **kwargs):
         super().__init__(config)
         self.model = CPTModel(config)
@@ -1454,23 +1460,23 @@ class CPTForMaskedLM(CPTPretrainedModel):
         return self.lm_head
 
     def forward(
-        self,
-        input_ids=None,
-        attention_mask=None,
-        decoder_input_ids=None,
-        decoder_attention_mask=None,
-        head_mask=None,
-        decoder_head_mask=None,
-        encoder_outputs=None,
-        inputs_embeds=None,
-        decoder_inputs_embeds=None,
-        use_cache=None,
-        output_attentions=None,
-        output_hidden_states=None,
-        return_dict=None,
+            self,
+            input_ids=None,
+            attention_mask=None,
+            decoder_input_ids=None,
+            decoder_attention_mask=None,
+            head_mask=None,
+            decoder_head_mask=None,
+            encoder_outputs=None,
+            inputs_embeds=None,
+            decoder_inputs_embeds=None,
+            use_cache=None,
+            output_attentions=None,
+            output_hidden_states=None,
+            return_dict=None,
     ):
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-        
+
         if input_ids is None and inputs_embeds is not None:
             raise NotImplementedError(
                 f"Passing input embeddings is currently not supported for {self.__class__.__name__}"

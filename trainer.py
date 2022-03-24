@@ -1,3 +1,5 @@
+import copy
+
 from modeling_cpt import CPTForConditionalGeneration
 from transformers import BertTokenizer
 import torch
@@ -88,11 +90,11 @@ class MutitaskTrainer(object):
                     self._save_model()
                     self.logger.info("Model saved.")
 
-                    self.logger.info(f"Current best acc [{self.best_acc}%] occured at step [{self.best_step}].")
+                    self.logger.info(f"Current best acc [{self.best_acc}] occured at step [{self.best_step}].")
         self.logger.info("Training finished. Elapse {:.4f} hours.".format((time.time() - total_time) / 3600))
 
     def _train_step(self):
-        batch, task_id = next(self.train_loader)
+        batch, task_id = copy.deepcopy(next(self.train_loader))
         batch['task_id'] = task_id
         for k, v in batch.items():
             batch[k] = v.to(self.device)
@@ -104,6 +106,7 @@ class MutitaskTrainer(object):
         loss.backward()
         self.optim.step()
         self.optim.zero_grad()
+        print(f'step {self.steps}', torch.cuda.memory_summary())
         if self.steps % self.print_every == 0:
             write_summary("train_loss", loss.item() / self.print_every, self.steps)
             write_summary("train_acc", acc.item(), self.steps)

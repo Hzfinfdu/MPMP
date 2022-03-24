@@ -15,10 +15,10 @@ class TrainDataLoader:
     封装了全部细节，只需要一直next，就可以保证每|NumOfDataset|个iter必每个任务都出现一遍，并且顺序随机。
     数据量长短的问题已在InfiniteDataLoader类中解决。
     """
-    def __init__(self, batch_size=32):
+    def __init__(self, batch_size=32, n_prompt_tokens=50):
         self.count = 0
         self.perm = torch.randperm(num_datasets)
-        self.loader_list = [cls().get_infinite_dataloader(batch_size) for cls in Dataset_list]
+        self.loader_list = [cls(n_prompt_tokens).get_infinite_dataloader(batch_size) for cls in Dataset_list]
 
     def __next__(self):
         next_batch = self.loader_list[self.perm[self.count]].__next__()
@@ -64,15 +64,17 @@ def collate(batch_input):
 
 
 class BasicDataset:
-    def __init__(self, path, labellist):
+    def __init__(self, path, labellist, n_prompt_tokens):
         self.path = path
         self.labellist = labellist
         self.tmp_labellist = copy.deepcopy(labellist)
         self.has_test = False
-        self.max_input_len = 511 - len('，'.join(labellist))
+        self.max_input_len = 511 - len('，'.join(labellist)) - n_prompt_tokens
+        offset = 5000
+        self.init_prompt = list(range(offset, offset + n_prompt_tokens))
 
     def convert_examples(self, example):
-        input_ids = tokenizer.encode(self.input_template(example))[:-1][:self.max_input_len]
+        input_ids = self.init_prompt + tokenizer.encode(self.input_template(example))[:-1][:self.max_input_len]
         random.shuffle(self.tmp_labellist)
         options = '，'.join(self.tmp_labellist)
         input_ids = input_ids
@@ -105,8 +107,8 @@ class BasicDataset:
 
 
 class AFQMCDataset(BasicDataset):
-    def __init__(self):
-        super().__init__(path='/remote-home/share/ChineseData/chineseeval/AFQMC/AFQMC.py', labellist=["不同", "相似"])
+    def __init__(self, n_prompt_tokens=50):
+        super().__init__(path='/remote-home/share/ChineseData/chineseeval/AFQMC/AFQMC.py', labellist=["不同", "相似"], n_prompt_tokens=n_prompt_tokens)
         self.has_test = False
 
     def input_template(self, example):
@@ -115,16 +117,16 @@ class AFQMCDataset(BasicDataset):
 
 
 class OcnliDataset(BasicDataset):
-    def __init__(self):
-        super().__init__(path='/remote-home/share/ChineseData/chineseeval/ocnli/ocnli.py', labellist=["矛盾", "中立", "蕴含"])
+    def __init__(self, n_prompt_tokens=50):
+        super().__init__(path='/remote-home/share/ChineseData/chineseeval/ocnli/ocnli.py', labellist=["矛盾", "中立", "蕴含"], n_prompt_tokens=n_prompt_tokens)
         self.has_test = False
 
     def input_template(self, example):
         return f'意思判别：“{example["text1"]}”与“{example["text2"]}”的关系是？'
 
 class PawsDataset(BasicDataset):
-    def __init__(self):
-        super().__init__(path='/remote-home/share/ChineseData/chineseeval/paws/paws.py', labellist=["矛盾", "中立", "蕴含"])
+    def __init__(self, n_prompt_tokens=50):
+        super().__init__(path='/remote-home/share/ChineseData/chineseeval/paws/paws.py', labellist=["矛盾", "中立", "蕴含"], n_prompt_tokens=n_prompt_tokens)
         self.has_test = True
 
     def input_template(self, example):
@@ -132,8 +134,8 @@ class PawsDataset(BasicDataset):
 
 
 class CMNLIDataset(BasicDataset):
-    def __init__(self):
-        super().__init__(path='/remote-home/share/ChineseData/chineseeval/CMNLI/cmnli.py', labellist=["矛盾", "中立", "蕴含"])
+    def __init__(self, n_prompt_tokens=50):
+        super().__init__(path='/remote-home/share/ChineseData/chineseeval/CMNLI/cmnli.py', labellist=["矛盾", "中立", "蕴含"], n_prompt_tokens=n_prompt_tokens)
         self.has_test = False
 
     def input_template(self, example):
@@ -141,8 +143,8 @@ class CMNLIDataset(BasicDataset):
 
 
 class ChnSentiCorpDataset(BasicDataset):
-    def __init__(self):
-        super().__init__(path='/remote-home/share/ChineseData/chineseeval/chnsenticorp/chnsenticorp.py', labellist=["负面", "正面"])
+    def __init__(self, n_prompt_tokens=50):
+        super().__init__(path='/remote-home/share/ChineseData/chineseeval/chnsenticorp/chnsenticorp.py', labellist=["负面", "正面"], n_prompt_tokens=n_prompt_tokens)
         self.has_test = True
 
     def input_template(self, example):
@@ -150,9 +152,9 @@ class ChnSentiCorpDataset(BasicDataset):
     
 
 class THUCNewsDataset(BasicDataset):
-    def __init__(self):
+    def __init__(self, n_prompt_tokens=50):
         super().__init__(path='/remote-home/share/ChineseData/chineseeval/THUCNews/thuc_news.py',
-                         labellist=["体育", "娱乐", "财经", "教育", "时尚", "八卦", "游戏", "社会", "科技", "经济"])
+                         labellist=["体育", "娱乐", "财经", "教育", "时尚", "八卦", "游戏", "社会", "科技", "经济"], n_prompt_tokens=n_prompt_tokens)
         self.has_test = True
 
     def input_template(self, example):
@@ -160,12 +162,12 @@ class THUCNewsDataset(BasicDataset):
 
 
 Dataset_list = [
-    # AFQMCDataset,
-    # # OcnliDataset,
-    # # PawsDataset,
-    CMNLIDataset,
-    # # ChnSentiCorpDataset,
-    # THUCNewsDataset,
+    AFQMCDataset,
+    # OcnliDataset,
+    PawsDataset,
+    # CMNLIDataset,
+    ChnSentiCorpDataset,
+    THUCNewsDataset,
 ]
 
 num_datasets = len(Dataset_list)
@@ -180,7 +182,7 @@ def taskname2dataloader(taskname):
 if __name__ == '__main__':
     a = TrainDataLoader()
     while True:
-        batch = a.__next__()
-        # for k, v in batch.items():
-        #     batch[k] = v.to('cuda:0')
-
+        batch, task_id = a.__next__()
+        batch['task_id'] = task_id
+        for k, v in batch.items():
+            batch[k] = v.to('cuda:0')

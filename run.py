@@ -21,6 +21,7 @@ parser.add_argument("--device", default='cuda:0', type=str)
 parser.add_argument("--n_prompts", default=3, type=int)
 parser.add_argument("--random_proj", default='he', type=str)
 parser.add_argument("--seed", default=42, type=int)
+parser.add_argument("--lr", default=0.01, type=float)
 args = parser.parse_args()
 
 
@@ -32,7 +33,7 @@ torch.manual_seed(args.seed)
 
 
 model = PretrainPrompt(args.intrinsic_dim, args.n_prompt_tokens, num_datasets, args.n_prompts)
-optimizer = AdamW(model.prompt_embed_model.parameters(), lr=0.001, betas=(0.9, 0.999))
+optimizer = AdamW(model.prompt_embed_model.parameters(), lr=args.lr, betas=(0.9, 0.999))
 # scheduler =
 trainer = MutitaskTrainer(args, model, optimizer)
 trainer.train()

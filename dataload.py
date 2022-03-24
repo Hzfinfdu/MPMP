@@ -22,18 +22,18 @@ class TrainDataLoader:
 
     def __next__(self):
         next_batch = self.loader_list[self.perm[self.count]].__next__()
-        next_batch['task_id'] = self.perm[self.count].unsqueeze(0)
+        # next_batch['task_id'] = self.perm[self.count].unsqueeze(0)
         self.count += 1
         if self.count == num_datasets:
             self.count = 0
             self.perm = torch.randperm(num_datasets)
-        return next_batch
+        return next_batch, self.perm[self.count].unsqueeze(0)
 
 
 def get_dataloaders(batch_size=32, split='validation'):
     dev_dataset = [cls().get_dataset(split) for cls in Dataset_list]
     return [
-        torch.utils.data.DataLoader(ds, batch_size=batch_size, drop_last=True, shuffle=True, collate_fn=collate)
+        torch.utils.data.DataLoader(ds, batch_size=batch_size, drop_last=True, shuffle=True, collate_fn=collate, pin_memory=True)
         for ds in dev_dataset
     ]
 
@@ -98,7 +98,7 @@ class BasicDataset:
                 dataset = load_dataset(self.path, split='validation')
         else:
             dataset = load_dataset(self.path, split=split)
-        return dataset.map(self.convert_examples, load_from_cache_file=False, remove_columns=dataset.column_names)
+        return dataset.map(self.convert_examples, remove_columns=dataset.column_names)
 
     def get_infinite_dataloader(self, batch_size=32):
         return InfiniteDataLoader(self.get_dataset(), batch_size=batch_size, drop_last=True, shuffle=True, collate_fn=collate)
@@ -160,12 +160,12 @@ class THUCNewsDataset(BasicDataset):
 
 
 Dataset_list = [
-    AFQMCDataset,
-    OcnliDataset,
-    PawsDataset,
+    # AFQMCDataset,
+    # # OcnliDataset,
+    # # PawsDataset,
     CMNLIDataset,
-    ChnSentiCorpDataset,
-    THUCNewsDataset,
+    # # ChnSentiCorpDataset,
+    # THUCNewsDataset,
 ]
 
 num_datasets = len(Dataset_list)
@@ -178,6 +178,9 @@ def taskname2dataloader(taskname):
 
 
 if __name__ == '__main__':
-    a = get_dataloader()
-    for data in a:
-        pass
+    a = TrainDataLoader()
+    while True:
+        batch = a.__next__()
+        # for k, v in batch.items():
+        #     batch[k] = v.to('cuda:0')
+

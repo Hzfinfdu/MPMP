@@ -27,7 +27,6 @@ class MutitaskTrainer(object):
     def __init__(self, args, model, optimizer, scheduler=None):
         """
         :param model: 模型
-        :param task_lst: 任务列表
         :param optimizer: 优化器
         :param log_path: TensorboardX存储文件夹
         :param save_path: 模型存储位置
@@ -64,18 +63,22 @@ class MutitaskTrainer(object):
 
     def train(self):
         self.model.to(self.device)
+        for param in self.model.model.parameters():
+            param.requires_grad = False
+        for param in self.model.prompt_embed_model.parameters():
+            param.requires_grad = True
+
         total_time = time.time()
         self.logger.info("Start training...")
         for i_step in tqdm(range(self.n_steps)):
             self._train_step()
-            if i_step % self.print_every == self.print_every - 1:
-                dev_loss, dev_acc = self._eval_epoch(dev=False)
+            if i_step % self.eval_every == self.eval_every - 1:
+                dev_loss, dev_acc = self._eval_epoch()
                 mean_acc = sum(dev_acc) / len(dev_acc)
                 self._dump_model_state(f"{i_step}.th")
-                write_summary("dev_loss", dev_loss, i_step)
-                eval_str = f"Validation loss {sum(dev_loss) / len(dev_loss)}, avg acc {mean_acc}%"
-                for task, value in dev_acc.items():
-                    eval_str += f", {task} acc {value['acc']}%"
+                eval_str = f"Validation loss {sum(dev_loss) / len(dev_loss)}, avg acc {mean_acc}"
+                for task, value in enumerate(dev_acc):
+                    eval_str += f", task {task} acc {value}"
                 self.logger.info(eval_str)
 
                 if mean_acc > self.best_acc:
@@ -85,11 +88,12 @@ class MutitaskTrainer(object):
                     self._save_model()
                     self.logger.info("Model saved.")
 
-            self.logger.info(f"Current best acc [{self.best_acc}%] occured at step [{self.best_step}].")
+                    self.logger.info(f"Current best acc [{self.best_acc}%] occured at step [{self.best_step}].")
         self.logger.info("Training finished. Elapse {:.4f} hours.".format((time.time() - total_time) / 3600))
 
     def _train_step(self):
-        batch = next(self.train_loader)
+        batch, task_id = next(self.train_loader)
+        batch['task_id'] = task_id
         for k, v in batch.items():
             batch[k] = v.to(self.device)
         self.model.prompt_embed_model.train()
@@ -102,20 +106,21 @@ class MutitaskTrainer(object):
         self.optim.zero_grad()
         if self.steps % self.print_every == 0:
             write_summary("train_loss", loss.item() / self.print_every, self.steps)
-            write_summary("train_acc", acc, self.steps)
+            write_summary("train_acc", acc.item(), self.steps)
             self.logger.info(f" - Step {self.steps}: loss {loss.item() / self.print_every}")
         if self.scheduler is not None:
             self.scheduler.step()
 
-    def _eval_epoch(self, dev=True):
+    def _eval_epoch(self):
         self.logger.info("Evaluating...")
         dev_losses = []
         dev_accs = []
         self.model.eval()
         with torch.no_grad():
-            for dev_loader in self.dev_loaders:
+            for id_, dev_loader in enumerate(self.dev_loaders):
                 total_loss, total_acc = 0., 0.
                 for i, batch in tqdm(enumerate(dev_loader)):
+                    batch['task_id'] = torch.tensor([id_])
                     for k, v in batch.items():
                         batch[k] = v.to(self.device)
                     loss, acc = self.model(**batch)

@@ -77,7 +77,6 @@ class BasicDataset:
         input_ids = self.init_prompt + tokenizer.encode(self.input_template(example))[:-1][:self.max_input_len]
         random.shuffle(self.tmp_labellist)
         options = '，'.join(self.tmp_labellist)
-        input_ids = input_ids
         start_positions = options.find(self.labellist[int(example['label'])]) + len(input_ids)
         return {
             'input_ids': input_ids + tokenizer.encode(options)[1:],
@@ -112,7 +111,7 @@ class AFQMCDataset(BasicDataset):
         self.has_test = False
 
     def input_template(self, example):
-        return f'意思判别：“{example["text1"]}”与“{example["text2"]}”的意思是？'
+        return f'意思判别：“{example["text1"]}”与“{example["text2"]}”的意思是？选项：'
 
 
 
@@ -122,7 +121,7 @@ class OcnliDataset(BasicDataset):
         self.has_test = False
 
     def input_template(self, example):
-        return f'意思判别：“{example["text1"]}”与“{example["text2"]}”的关系是？'
+        return f'意思判别：“{example["text1"]}”与“{example["text2"]}”的关系是？选项：'
 
 class PawsDataset(BasicDataset):
     def __init__(self, n_prompt_tokens=50):
@@ -130,7 +129,7 @@ class PawsDataset(BasicDataset):
         self.has_test = True
 
     def input_template(self, example):
-        return f'意思判别：“{example["text1"]}”与“{example["text2"]}”的关系是？'
+        return f'意思判别：“{example["text1"]}”与“{example["text2"]}”的关系是？选项：'
 
 
 class CMNLIDataset(BasicDataset):
@@ -139,7 +138,7 @@ class CMNLIDataset(BasicDataset):
         self.has_test = False
 
     def input_template(self, example):
-        return f'意思判别：“{example["text1"]}”与“{example["text2"]}”的关系是？'
+        return f'意思判别：“{example["text1"]}”与“{example["text2"]}”的关系是？选项：'
 
 
 class ChnSentiCorpDataset(BasicDataset):
@@ -148,7 +147,7 @@ class ChnSentiCorpDataset(BasicDataset):
         self.has_test = True
 
     def input_template(self, example):
-        return f'情感分析：“{example["text"]}”的情感是？'
+        return f'情感分析：“{example["text"]}”的情感是？选项：'
     
 
 class THUCNewsDataset(BasicDataset):
@@ -158,20 +157,26 @@ class THUCNewsDataset(BasicDataset):
         self.has_test = True
 
     def input_template(self, example):
-        return f'主题识别：“{example["text"]}”的主题是？'
+        return f'主题识别：“{example["text"]}”的主题是？选项：'
 
 
 Dataset_list = [
     AFQMCDataset,
-    # OcnliDataset,
+    OcnliDataset,
     PawsDataset,
-    # CMNLIDataset,
+    CMNLIDataset,
     ChnSentiCorpDataset,
     THUCNewsDataset,
 ]
 
 num_datasets = len(Dataset_list)
-
+# a = TrainDataLoader()
+#     # while True:
+# a_test_batch, task_id = a.__next__()
+# a_test_batch['task_id'] = task_id
+# # a_test_batch = a_test_batch.cuda()
+# for k, v in a_test_batch.items():
+#     a_test_batch[k] = v.to('cuda:0')
 
 def taskname2dataloader(taskname):
     if taskname not in Dic.keys():
@@ -179,10 +184,5 @@ def taskname2dataloader(taskname):
     return Dic[taskname]().get_dataloader()
 
 
-if __name__ == '__main__':
-    a = TrainDataLoader()
-    while True:
-        batch, task_id = a.__next__()
-        batch['task_id'] = task_id
-        for k, v in batch.items():
-            batch[k] = v.to('cuda:0')
+# if __name__ == '__main__':
+

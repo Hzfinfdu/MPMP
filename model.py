@@ -20,16 +20,20 @@ class PretrainPrompt(nn.Module):
         # self.tokenizer = BertTokenizer.from_pretrained("fnlp/cpt-large")
         self.model = CPTForQuestionAnswering.from_pretrained("fnlp/cpt-large")
         self.prompt_embed_model = PromptChoice(d, self.model.config.hidden_size, prompt_token_num, n_tasks, n_prompts)
+        # self.prompt_embedding = nn.Parameter(torch.zeros(32, 50, 1024))
 
     def forward(self, input_ids, start_positions, end_positions, task_id):
         batch_size = input_ids.size()[0]
         prompt_embedding = self.prompt_embed_model(task_id=task_id, batch_size=batch_size)
+
         outputs = self.model(input_ids=input_ids, prompt_embedding=prompt_embedding, start_positions=start_positions,
                              end_positions=end_positions)
         loss = outputs.loss
         acc = torch.mul((start_positions == outputs.start_logits.argmax(dim=1)).long(),
                         (end_positions == outputs.end_logits.argmax(dim=1)).long()).sum() / batch_size
         return loss, acc
+        # loss = prompt_embedding.sum(dim=0).sum(dim=0).sum(dim=0)
+        # return loss, torch.tensor(0)
 
     def neg_log_IBP(self, matrix, alpha=3.):
         """ Calculate IBP prior contribution - log P(Z|alpha)

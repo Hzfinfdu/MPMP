@@ -10,10 +10,10 @@ import os
 
 parser = argparse.ArgumentParser()
 # parser.add_argument("--task_name", default='sst2', type=str)
-parser.add_argument("--n_prompt_tokens", default=50, type=int)
+parser.add_argument("--n_prompt_tokens", default=30, type=int)
 parser.add_argument("--intrinsic_dim", default=500, type=int)
 parser.add_argument("--save_every", default=1000, type=int)
-parser.add_argument("--batch_size", default=4, type=int)
+parser.add_argument("--batch_size", default=8, type=int)
 parser.add_argument("--n_steps", default=20000, type=int)
 parser.add_argument("--print_every", default=50, type=int)
 parser.add_argument("--eval_every", default=1000, type=int)

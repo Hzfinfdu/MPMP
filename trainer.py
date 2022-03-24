@@ -64,12 +64,11 @@ class MutitaskTrainer(object):
             os.makedirs('./logs', exist_ok=True)
 
     def train(self):
-        self.model.to(self.device)
         for param in self.model.model.parameters():
             param.requires_grad = False
         for param in self.model.prompt_embed_model.parameters():
             param.requires_grad = True
-
+        self.model.to(self.device)
         total_time = time.time()
         self.logger.info("Start training...")
         for i_step in tqdm(range(self.n_steps)):
@@ -94,7 +93,7 @@ class MutitaskTrainer(object):
         self.logger.info("Training finished. Elapse {:.4f} hours.".format((time.time() - total_time) / 3600))
 
     def _train_step(self):
-        batch, task_id = copy.deepcopy(next(self.train_loader))
+        batch, task_id = next(self.train_loader)
         batch['task_id'] = task_id
         for k, v in batch.items():
             batch[k] = v.to(self.device)
@@ -106,7 +105,7 @@ class MutitaskTrainer(object):
         loss.backward()
         self.optim.step()
         self.optim.zero_grad()
-        print(f'step {self.steps}', torch.cuda.memory_summary())
+        # print(f'step {self.steps}', torch.cuda.memory_summary())
         if self.steps % self.print_every == 0:
             write_summary("train_loss", loss.item() / self.print_every, self.steps)
             write_summary("train_acc", acc.item(), self.steps)

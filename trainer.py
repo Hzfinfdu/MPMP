@@ -100,8 +100,10 @@ class MutitaskTrainer(object):
         self.model.prompt_embed_model.train()
         self.model.model.eval()
         self.model.zero_grad()
-        loss, acc = self.model(**batch)
+        loss, acc, prompt_logits= self.model(**batch)
         self.steps += 1
+        if self.steps%1000==0 : print(prompt_logits)
+
         loss.backward()
         self.optim.step()
         self.optim.zero_grad()
@@ -125,7 +127,8 @@ class MutitaskTrainer(object):
                     batch['task_id'] = torch.tensor([id_])
                     for k, v in batch.items():
                         batch[k] = v.to(self.device)
-                    loss, acc = self.model(**batch)
+                    batch['is_train'] = False
+                    loss, acc,_ = self.model(**batch)
                     total_loss += loss.item()
                     total_acc += acc
                 total_loss /= len(dev_loader)

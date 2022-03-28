@@ -9,6 +9,7 @@ import os
 import fastNLP
 import time
 
+
 # tokenizer = BertTokenizer.from_pretrained("fnlp/cpt-large")
 # model = CPTForConditionalGeneration.from_pretrained("fnlp/cpt-large")
 #
@@ -24,6 +25,7 @@ import time
 def write_summary(*args):
     with open('./logs/logs.txt', 'a+') as f:
         print(*args, file=f)
+
 
 class MutitaskTrainer(object):
     def __init__(self, args, model, optimizer, scheduler=None):
@@ -44,6 +46,7 @@ class MutitaskTrainer(object):
         self.batch_size = args.batch_size
         self.save_every = args.save_every
         self.print_every = args.print_every
+        self.anneal_every = args.anneal_every
         self.steps = 0
         self.best_acc = 0
         self.best_step = 0
@@ -73,6 +76,8 @@ class MutitaskTrainer(object):
         self.logger.info("Start training...")
         for i_step in tqdm(range(self.n_steps)):
             self._train_step()
+            if i_step % self.anneal_every == self.anneal_every - 1:
+                self.anneal()
             if i_step % self.eval_every == self.eval_every - 1:
                 dev_loss, dev_acc = self._eval_epoch()
                 mean_acc = sum(dev_acc) / len(dev_acc)
@@ -100,9 +105,9 @@ class MutitaskTrainer(object):
         self.model.prompt_embed_model.train()
         self.model.model.eval()
         self.model.zero_grad()
-        loss, acc, prompt_logits= self.model(**batch)
+        loss, acc, prompt_logits = self.model(**batch)
         self.steps += 1
-        if self.steps%1000==0 : print(prompt_logits)
+        if self.steps % 1000 == 0: print(prompt_logits)
 
         loss.backward()
         self.optim.step()
@@ -128,7 +133,7 @@ class MutitaskTrainer(object):
                     for k, v in batch.items():
                         batch[k] = v.to(self.device)
                     batch['is_train'] = False
-                    loss, acc,_ = self.model(**batch)
+                    loss, acc, _ = self.model(**batch)
                     total_loss += loss.item()
                     total_acc += acc
                 total_loss /= len(dev_loader)
@@ -145,5 +150,6 @@ class MutitaskTrainer(object):
         save_path = os.path.join(self.save_path, "models", name)
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         torch.save(self.model.prompt_embed_model.state_dict(), save_path)  # 要改
-    
 
+    def anneal(self):
+        self.model.temperature /= 2.

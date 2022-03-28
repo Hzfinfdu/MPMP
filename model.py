@@ -55,10 +55,11 @@ class PromptChoice(nn.Module):
         self.n_tasks = n_tasks
         self.n_prompts = n_prompts
         self.EPS = 1e-12
+        self.temperature = 10.
 
     def forward(self, task_id, batch_size,is_train):
         prompt_logits = self.prompt_logits[task_id]
-        prompt_logits = RelaxedBernoulli(temperature=1., logits=prompt_logits).rsample()
+        prompt_logits = RelaxedBernoulli(temperature=self.temperature, logits=prompt_logits).rsample()
         prompt_logits = prompt_logits / (prompt_logits.sum(dim=-1, keepdim=True) + self.EPS)
         AZ = torch.bmm(self.A, self.Z).squeeze(-1)
         prompt_embedding = torch.mm(prompt_logits, AZ).view(self.prompt_token_num, self.hidden_size)
@@ -74,7 +75,7 @@ class PromptChoice(nn.Module):
     def neg_log_IBP(self, matrix,n_tasks,n_prompts , alpha=3.):
         """ Calculate IBP prior contribution - log P(Z|alpha)
             Based on https://github.com/davidandrzej/PyIBP/blob/master/PyIBP.py """
-        matrix = RelaxedBernoulli(temperature=1., logits= matrix).rsample()
+        matrix = RelaxedBernoulli(temperature=self.temperature, logits= matrix).rsample()
         matrix = matrix / (matrix.sum(dim=-1, keepdim=True) + self.EPS)
         # ones = torch.ones(n_tasks, n_prompts).to("cuda:0")
         # zeros = torch.zeros(n_tasks, n_prompts).to("cuda:0")

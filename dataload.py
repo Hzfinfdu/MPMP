@@ -67,6 +67,9 @@ class BasicDataset:
         raise NotImplementedError
 
     def get_dataset(self, split='train'):
+        return self._get_dataset(split)
+
+    def _get_dataset(self, split='train'):
         if not self.has_test:
             if split == 'train':
                 dataset = load_dataset(self.path, split='train')
@@ -144,16 +147,15 @@ class ExtractiveQABasicDataset(BasicDataset):
         self.hard_prompt_len = len(self.hard_prompt)
         self.has_is_impossible = has_is_impossible
 
+    def get_dataset(self, split='train'):
+        return self._get_dataset(split).filter(lambda x: len(x['input_ids']) <= 512)
+
     def convert_examples(self, example):
         context_ids = tokenizer(example['context'])
         if self.has_is_impossible and example['is_impossible']:
             start_positions = 9 + self.n_prompt_tokens
             end_positions = start_positions + 4
         else:
-            # if example['answer_start'] < 0:
-            #     print(example['question'])
-            #     print(example['answer_start'])
-            #     print(example['answer_text'])
             start_positions = context_ids.char_to_token(example['answer_start']) + self.n_prompt_tokens + self.hard_prompt_len
             end_positions = context_ids.char_to_token(example['answer_start'] + len(example['answer_text']) - 1) + self.n_prompt_tokens + self.hard_prompt_len
         input_ids = [101] + self.init_prompt + self.hard_prompt + context_ids['input_ids'][1:-1] + tokenizer.encode(f'问题"{example["question"]}')[1:]

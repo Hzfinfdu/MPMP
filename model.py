@@ -47,9 +47,9 @@ class PromptChoice(nn.Module):
         self.prompt_logits = nn.Parameter(torch.empty((n_tasks, n_prompts)).uniform_(-1e-3, 1e-3))
         self.ones = nn.Parameter(torch.ones(n_tasks, n_prompts))
         self.zeros = nn.Parameter(torch.zeros(n_tasks, n_prompts))
-        self.Z = nn.Parameter(torch.rand(n_prompts, d, 1))
-        self.A = nn.Parameter(torch.rand(n_prompts, prompt_token_num * hidden_size, d))
-        # self.AZ = nn.Parameter(torch.rand(n_prompts,prompt_token_num*hidden_size))
+        # self.Z = nn.Parameter(torch.rand(n_prompts, d, 1))
+        # self.A = nn.Parameter(torch.rand(n_prompts, prompt_token_num * hidden_size, d))
+        self.AZ = nn.Parameter(torch.rand(n_prompts,prompt_token_num*hidden_size))
         self.hidden_size = hidden_size
         self.prompt_token_num = prompt_token_num
         self.n_tasks = n_tasks
@@ -64,40 +64,25 @@ class PromptChoice(nn.Module):
         except ValueError:
             print(prompt_logits)
         prompt_logits = prompt_logits / (prompt_logits.sum(dim=-1, keepdim=True) + self.EPS)
-        AZ = torch.bmm(self.A, self.Z).squeeze(-1)
-        prompt_embedding = torch.mm(prompt_logits, AZ).view(self.prompt_token_num, self.hidden_size)
+        # AZ = torch.bmm(self.A, self.Z).squeeze(-1)
+        prompt_embedding = torch.mm(prompt_logits, self.AZ).view(self.prompt_token_num, self.hidden_size)
 
         prompt_embedding = prompt_embedding.tile(batch_size, 1, 1)
         
-        # a = torch.where(self.prompt_logits>0.5,self.ones,self.zeros)
-        # print("a = " ,a)
-        loss = self.neg_log_IBP(self.prompt_logits,self.n_tasks,self.n_prompts)
+        loss = self.neg_log_IBP(self.prompt_logits)
         return prompt_embedding,self.prompt_logits,loss
 
-
-    def neg_log_IBP(self, matrix,n_tasks,n_prompts , alpha=3.):
+    def neg_log_IBP(self,matrix, alpha=3.):
         """ Calculate IBP prior contribution - log P(Z|alpha)
             Based on https://github.com/davidandrzej/PyIBP/blob/master/PyIBP.py """
-        try:
-            matrix = RelaxedBernoulli(temperature=1., logits= matrix).rsample()
-        except ValueError:
-            print(matrix)
-        matrix = matrix / (matrix.sum(dim=-1, keepdim=True) + self.EPS)
-        # ones = torch.ones(n_tasks, n_prompts).to("cuda:0")
-        # zeros = torch.zeros(n_tasks, n_prompts).to("cuda:0")
-        # matrix = torch.where(matrix>0.5,ones,zeros)
         N, _ = matrix.shape
-        # print("matrix.shape=",matrix.shape)
-        # print("matrix=",matrix)
+        matrix = RelaxedBernoulli(torch.tensor(0.1), logits = matrix).sample()
         m = matrix.sum(dim=0)
-        # print("m.shape=",m.shape)
-        # print("m=",m)
-        # print("m.nonzero()=",m.nonzero())
-        # print("m.nonzero() shape=",m.nonzero().shape)
-        m = m[m.nonzero()].squeeze()
-        # print("m.shape=",m.shape)
-        K = len(m)
-        # print(K)
+        m_int = (matrix>0.5).long()
+        m_int = m_int.sum(dim=0)
+        K = m_int.nonzero().size(0)
+        m = m[m_int.nonzero()].squeeze()
+
 
         def log_factorial(value):
             return torch.lgamma(value + 1)
@@ -114,8 +99,3 @@ class PromptChoice(nn.Module):
         logp -= special.gammaln(N + 1) * K
         return - logp
 
-# model = PromptChoice(d=500,hidden_size=5,prompt_token_num=3,n_tasks=6,n_prompts=2)
-# task_id=torch.tensor([0])
-# output = model(task_id=task_id,batch_size=4)
-# print(output.shape)
-# print(output)

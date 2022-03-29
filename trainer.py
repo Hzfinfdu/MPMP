@@ -152,4 +152,4 @@ class MutitaskTrainer(object):
         torch.save(self.model.prompt_embed_model.state_dict(), save_path)  # 要改
 
     def anneal(self):
-        self.model.temperature /= 2.
+        self.model.prompt_embed_model.temperature /= 2.

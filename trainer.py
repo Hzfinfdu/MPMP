@@ -46,7 +46,8 @@ class MutitaskTrainer(object):
         self.batch_size = args.batch_size
         self.save_every = args.save_every
         self.print_every = args.print_every
-        self.anneal_every = args.anneal_every
+        self.anneal_rate = args.anneal_rate
+        self.anneal_min = args.anneal_min
         self.steps = 0
         self.best_acc = 0
         self.best_step = 0
@@ -76,8 +77,7 @@ class MutitaskTrainer(object):
         self.logger.info("Start training...")
         for i_step in tqdm(range(self.n_steps)):
             self._train_step()
-            if i_step % self.anneal_every == self.anneal_every - 1:
-                self.anneal()
+            self.anneal(i_step)
             if i_step % self.eval_every == self.eval_every - 1:
                 dev_loss, dev_acc = self._eval_epoch()
                 mean_acc = sum(dev_acc) / len(dev_acc)
@@ -144,12 +144,12 @@ class MutitaskTrainer(object):
 
     def _save_model(self):
         save_path = os.path.join(self.save_path, "best.th")
-        torch.save(self.model.prompt_embed_model.state_dict(), save_path)  # 要改
+        torch.save(self.model.prompt_embed_model.state_dict(), save_path)
 
     def _dump_model_state(self, name):
         save_path = os.path.join(self.save_path, "models", name)
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        torch.save(self.model.prompt_embed_model.state_dict(), save_path)  # 要改
+        torch.save(self.model.prompt_embed_model.state_dict(), save_path)
 
-    def anneal(self):
-        self.model.prompt_embed_model.temperature /= 2.
+    def anneal(self, i_step):
+        self.model.prompt_embed_model.temperature = max(self.anneal_min, self.model.prompt_embed_model.temperature * np.exp(-self.anneal_rate * i_step))

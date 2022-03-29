@@ -22,7 +22,8 @@ parser.add_argument("--n_prompts", default=3, type=int)
 parser.add_argument("--random_proj", default='he', type=str)
 parser.add_argument("--seed", default=42, type=int)
 parser.add_argument("--lr", default=0.001, type=float)
-parser.add_argument("--anneal_every", default=2000, type=int)
+parser.add_argument("--anneal_rate", default=0.0003, type=float)
+parser.add_argument("--anneal_min", default=0.5, type=float)
 args = parser.parse_args()
 
 

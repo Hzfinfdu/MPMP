@@ -344,14 +344,14 @@ class DogWhistleDataset(MultipleChoiceQABasicDataset):
         return f'近义词选择：与词语"{example["question"]}"最相近的词是？选项：'
 
 
-class CAILDataset(ExtractiveQABasicDataset):
-    def __init__(self, n_prompt_tokens=50):
-        super(CAILDataset, self).__init__(
-            path='/remote-home/share/ChineseData/chineseeval/CAIL/CAIL.py',
-            n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
-            has_is_impossible=True
-        )
+# class CAILDataset(ExtractiveQABasicDataset):
+#     def __init__(self, n_prompt_tokens=50):
+#         super(CAILDataset, self).__init__(
+#             path='/remote-home/share/ChineseData/chineseeval/CAIL/CAIL.py',
+#             n_prompt_tokens=n_prompt_tokens,
+#             has_test=True,
+#             has_is_impossible=True
+#         )
 
 
 class Cmrc2018Dataset(ExtractiveQABasicDataset):
@@ -567,7 +567,6 @@ Dataset_list = [
     # # PawsDataset,
     # # BQDataset,
     # # ChipCtcDataset,
-    # CAILDataset,
     DRCDDataset,
     # # DogWhistleDataset,
     # # CSLDataset,

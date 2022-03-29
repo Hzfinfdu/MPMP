@@ -2,12 +2,12 @@ import copy
 from datasets import load_dataset, concatenate_datasets
 import torch
 import random
-from transformers import BertTokenizer
+from transformers import BertTokenizerFast
 from torch.nn.utils.rnn import pad_sequence
 
-torch.manual_seed(42)
-random.seed(42)
-tokenizer = BertTokenizer.from_pretrained("fnlp/cpt-large")
+# torch.manual_seed(42)
+# random.seed(42)
+tokenizer = BertTokenizerFast.from_pretrained("fnlp/cpt-large")
 
 
 class TrainDataLoader:
@@ -135,28 +135,33 @@ class MultipleChoiceQABasicDataset(BasicDataset):
 
 
 class ExtractiveQABasicDataset(BasicDataset):
-    def __init__(self, path, n_prompt_tokens, has_test):
+    def __init__(self, path, n_prompt_tokens, has_test, has_is_impossible):
         super(ExtractiveQABasicDataset, self).__init__(path, has_test, n_prompt_tokens)
+        if has_is_impossible:
+            self.hard_prompt = tokenizer.encode('抽取式问答（可能没有答案）：文本"')[1:-1]
+        else:
+            self.hard_prompt = tokenizer.encode('抽取式问答：文本"')[1:-1]
+        self.hard_prompt_len = len(self.hard_prompt)
+        self.has_is_impossible = has_is_impossible
 
     def convert_examples(self, example):
-        input_ids = [102] + self.init_prompt + tokenizer.encode(self.input_template(example))[1:-1]
-        # start_positions =
+        context_ids = tokenizer(example['context'])
+        if self.has_is_impossible and example['is_impossible']:
+            start_positions = 9 + self.n_prompt_tokens
+            end_positions = start_positions + 4
+        else:
+            # if example['answer_start'] < 0:
+            #     print(example['question'])
+            #     print(example['answer_start'])
+            #     print(example['answer_text'])
+            start_positions = context_ids.char_to_token(example['answer_start']) + self.n_prompt_tokens + self.hard_prompt_len
+            end_positions = context_ids.char_to_token(example['answer_start'] + len(example['answer_text']) - 1) + self.n_prompt_tokens + self.hard_prompt_len
+        input_ids = [101] + self.init_prompt + self.hard_prompt + context_ids['input_ids'][1:-1] + tokenizer.encode(f'问题"{example["question"]}')[1:]
         return {
             'input_ids': input_ids,
-            'start_positions': example['answer_start'],
-            'end_positions': example['answer_start'] + len(example['answer_text']) - 1
+            'start_positions': start_positions,
+            'end_positions': end_positions
         }
-
-    def input_template(self, example):
-        # example['answer_start'] += 9 + self.n_prompt_tokens
-        extra = ''
-        if 'is_impossible' in example.keys():
-            extra = '（可能没有答案）'
-            # example['answer_start'] += 8
-            # if example['is_impossible']:
-            example['answer_start'] = 9 + self.n_prompt_tokens
-            example['answer_text'] = '没有答案'
-        return f'抽取式问答{extra}：文本"{example["context"]}"问题"{example["question"]}"'
 
 
 class AFQMCDataset(TCNLIBasicDataset):
@@ -191,7 +196,7 @@ class PawsDataset(TCNLIBasicDataset):
             path='/remote-home/share/ChineseData/chineseeval/paws/paws.py',
             labellist=["矛盾", "中立", "蕴含"],
             n_prompt_tokens=n_prompt_tokens,
-            has_test = True
+            has_test=True
         )
 
     def input_template(self, example):
@@ -344,7 +349,8 @@ class CAILDataset(ExtractiveQABasicDataset):
         super(CAILDataset, self).__init__(
             path='/remote-home/share/ChineseData/chineseeval/CAIL/CAIL.py',
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True
+            has_test=True,
+            has_is_impossible=True
         )
 
 
@@ -353,7 +359,8 @@ class Cmrc2018Dataset(ExtractiveQABasicDataset):
         super(Cmrc2018Dataset, self).__init__(
             path='/remote-home/share/ChineseData/chineseeval/cmrc2018/cmrc2018.py',
             n_prompt_tokens=n_prompt_tokens,
-            has_test=False
+            has_test=False,
+            has_is_impossible=False
         )
 
 
@@ -362,7 +369,8 @@ class DRCDDataset(ExtractiveQABasicDataset):
         super(DRCDDataset, self).__init__(
             path='/remote-home/share/ChineseData/chineseeval/drcd/drcd.py',
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True
+            has_test=True,
+            has_is_impossible=False
         )
 
 
@@ -371,7 +379,8 @@ class DuReaderChecklistDataset(ExtractiveQABasicDataset):
         super(DuReaderChecklistDataset, self).__init__(
             path='/remote-home/share/ChineseData/chineseeval/dureader_checklist/dureader_checklist.py',
             n_prompt_tokens=n_prompt_tokens,
-            has_test=False
+            has_test=False,
+            has_is_impossible=True
         )
 
 
@@ -380,7 +389,8 @@ class DuReaderRobustDataset(ExtractiveQABasicDataset):
         super(DuReaderRobustDataset, self).__init__(
             path='/remote-home/share/ChineseData/chineseeval/dureader_robust/dureader_robust.py',
             n_prompt_tokens=n_prompt_tokens,
-            has_test=False
+            has_test=False,
+            has_is_impossible=False
         )
 
 
@@ -401,125 +411,7 @@ class iflytekDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path='/remote-home/share/ChineseData/chineseeval/iflytek/iflytek.py',
-            labellist=["打车",
-                       "地图导航",
-                       "免费WIFI",
-                       "租车",
-                       "同城服务",
-                       "快递物流",
-                       "婚庆",
-                       "家政",
-                       "公共交通",
-                       "政务",
-                       "社区服务",
-                       "薅羊毛",
-                       "魔幻",
-                       "仙侠",
-                       "卡牌",
-                       "飞行空战",
-                       "射击游戏",
-                       "休闲益智",
-                       "动作类",
-                       "体育竞技",
-                       "棋牌中心",
-                       "经营养成",
-                       "策略",
-                       "MOBA",
-                       "辅助工具",
-                       "约会社交",
-                       "即时通讯",
-                       "工作社交",
-                       "论坛圈子",
-                       "婚恋社交",
-                       "情侣社交",
-                       "社交工具",
-                       "生活社交",
-                       "微博博客",
-                       "新闻",
-                       "漫画",
-                       "小说",
-                       "技术",
-                       "教辅",
-                       "问答交流",
-                       "搞笑",
-                       "杂志",
-                       "百科",
-                       "影视娱乐",
-                       "求职",
-                       "兼职",
-                       "视频",
-                       "短视频",
-                       "音乐",
-                       "直播",
-                       "电台",
-                       "K歌",
-                       "成人",
-                       "中小学",
-                       "职考",
-                       "公务员",
-                       "英语",
-                       "视频教育",
-                       "高等教育",
-                       "成人教育",
-                       "艺术",
-                       "语言(非英语)",
-                       "旅游资讯",
-                       "综合预定",
-                       "民航",
-                       "铁路",
-                       "酒店",
-                       "行程管理",
-                       "民宿短租",
-                       "出国",
-                       "工具",
-                       "亲子儿童",
-                       "母婴",
-                       "驾校",
-                       "违章",
-                       "汽车咨询",
-                       "汽车交易",
-                       "日常养车",
-                       "行车辅助",
-                       "租房",
-                       "买房",
-                       "装修家居",
-                       "电子产品",
-                       "问诊挂号",
-                       "养生保健",
-                       "医疗服务",
-                       "减肥瘦身",
-                       "美妆美业",
-                       "菜谱",
-                       "餐饮店",
-                       "体育咨讯",
-                       "运动健身",
-                       "支付",
-                       "保险",
-                       "股票",
-                       "借贷",
-                       "理财",
-                       "彩票",
-                       "记账",
-                       "银行",
-                       "美颜",
-                       "影像剪辑",
-                       "摄影修图",
-                       "相机",
-                       "绘画",
-                       "二手",
-                       "电商",
-                       "团购",
-                       "外卖",
-                       "电影票务",
-                       "社区超市",
-                       "购物咨询",
-                       "笔记",
-                       "办公",
-                       "日程管理",
-                       "女性",
-                       "经营",
-                       "收款",
-                       "其他"],
+            labellist=["打车", "地图导航", "免费WIFI", "租车", "同城服务", "快递物流", "婚庆", "家政", "公共交通", "政务", "社区服务", "薅羊毛", "魔幻", "仙侠", "卡牌", "飞行空战", "射击游戏", "休闲益智", "动作类", "体育竞技", "棋牌中心", "经营养成", "策略", "MOBA", "辅助工具", "约会社交", "即时通讯", "工作社交", "论坛圈子", "婚恋社交", "情侣社交", "社交工具", "生活社交", "微博博客", "新闻", "漫画", "小说", "技术", "教辅", "问答交流", "搞笑", "杂志", "百科", "影视娱乐", "求职", "兼职", "视频", "短视频", "音乐", "直播", "电台", "K歌", "成人", "中小学", "职考", "公务员", "英语", "视频教育", "高等教育", "成人教育", "艺术", "语言(非英语)", "旅游资讯", "综合预定", "民航", "铁路", "酒店", "行程管理", "民宿短租", "出国", "工具", "亲子儿童", "母婴", "驾校", "违章", "汽车咨询", "汽车交易", "日常养车", "行车辅助", "租房", "买房", "装修家居", "电子产品", "问诊挂号", "养生保健", "医疗服务", "减肥瘦身", "美妆美业", "菜谱", "餐饮店", "体育咨讯", "运动健身", "支付", "保险", "股票", "借贷", "理财", "彩票", "记账", "银行", "美颜", "影像剪辑", "摄影修图", "相机", "绘画", "二手", "电商", "团购", "外卖", "电影票务", "社区超市", "购物咨询", "笔记", "办公", "日程管理", "女性", "经营", "收款", "其他"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=True
         )
@@ -631,8 +523,8 @@ class tnewsDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path='/remote-home/share/ChineseData/chineseeval/tnews/tnews.py',
-            labellist=["房产新闻", "汽车新闻", "金融新闻", "体育新闻", "文化新闻", "娱乐新闻", "教育新闻", "科技新闻", "军事新闻", "旅游新闻", "世界新闻", "农业新闻", "股票新闻",
-                       "游戏新闻", "新闻故事"],
+            labellist=["房产", "汽车", "金融", "体育", "文化", "娱乐", "教育", "科技", "军事", "旅游", "世界", "农业", "股票",
+                       "游戏", "故事"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=True
         )
@@ -644,8 +536,8 @@ class toutiao_tcDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path='/remote-home/share/ChineseData/chineseeval/toutiao_tc/toutiao_tc.py',
-            labellist=["房产新闻", "汽车新闻", "金融新闻", "体育新闻", "文化新闻", "娱乐新闻", "教育新闻", "科技新闻", "军事新闻", "旅游新闻", "世界新闻", "农业新闻", "股票新闻",
-                       "游戏新闻", "新闻故事"],
+            labellist=["房产", "汽车", "金融", "体育", "文化", "娱乐", "教育", "科技", "军事", "旅游", "世界", "农业", "股票",
+                       "游戏", "故事"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=True
         )
@@ -666,26 +558,26 @@ class xnliDataset(TCNLIBasicDataset):
         return f'意思判别：“{example["text1"]}”与“{example["text2"]}”的关系是？选项：'
 
 Dataset_list = [
-    # AFQMCDataset,
+    AFQMCDataset,
     # OcnliDataset,
     # PawsDataset,
-    # # CMNLIDataset,
+    # CMNLIDataset,
     # ChnSentiCorpDataset,
-    THUCNewsDataset,
-    PawsDataset,
-    # BQDataset,
-    # ChipCtcDataset,
-    # # CAILDataset,
-    # # DRCDDataset,
-    # DogWhistleDataset,
-    # CSLDataset,
-    # FinReDataset,
-    # # DuReaderChecklistDataset,
-    # # DuReaderRobustDataset,
+    # THUCNewsDataset,
+    # # PawsDataset,
+    # # BQDataset,
+    # # ChipCtcDataset,
+    # CAILDataset,
+    DRCDDataset,
+    # # DogWhistleDataset,
+    # # CSLDataset,
+    # # FinReDataset,
+    DuReaderChecklistDataset,
+    DuReaderRobustDataset,
     # ChipStsDataset,
     # C3Dataset,
-    # # Cmrc2018Dataset,
-    # # ClueWSCDataset,
+    Cmrc2018Dataset,
+    # ClueWSCDataset,
     # # Fudan_tcDataset,
     # # iflytekDataset,
     # KUAKE_QICDataset,
@@ -701,17 +593,10 @@ Dataset_list = [
 ]
 
 num_datasets = len(Dataset_list)
-# a = TrainDataLoader()
-#     # while True:
-# a_test_batch, task_id = a.__next__()
-# a_test_batch['task_id'] = task_id
-# # a_test_batch = a_test_batch.cuda()
-# for k, v in a_test_batch.items():
-#     a_test_batch[k] = v.to('cuda:0')
 
 
 if __name__ == '__main__':
     for ds in Dataset_list:
-        a = ds().get_dataset(split='validation')[0]
-        print(tokenizer.decode(a['input_ids'][51:]))
+        a = ds(2).get_dataset(split='validation')[0]
+        print(tokenizer.decode(a['input_ids']))
         print(tokenizer.decode(a['input_ids'][a['start_positions']: a['end_positions'] + 1]))

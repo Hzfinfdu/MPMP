@@ -1,5 +1,5 @@
 import copy
-
+import numpy as np
 from modeling_cpt import CPTForConditionalGeneration
 from transformers import BertTokenizer
 import torch

@@ -560,6 +560,7 @@ class xnliDataset(TCNLIBasicDataset):
 Dataset_list = [
     AFQMCDataset,
     # OcnliDataset,
+<<<<<<< Updated upstream
     # PawsDataset,
     # CMNLIDataset,
     # ChnSentiCorpDataset,
@@ -573,6 +574,21 @@ Dataset_list = [
     # # FinReDataset,
     DuReaderChecklistDataset,
     DuReaderRobustDataset,
+=======
+    PawsDataset,
+    # # CMNLIDataset,
+    # ChnSentiCorpDataset,
+    THUCNewsDataset,
+    # BQDataset,
+    # ChipCtcDataset,
+    # # CAILDataset,
+    # # DRCDDataset,
+    # DogWhistleDataset,
+    # CSLDataset,
+    # FinReDataset,
+    # # DuReaderChecklistDataset,
+    # # DuReaderRobustDataset,
+>>>>>>> Stashed changes
     # ChipStsDataset,
     # C3Dataset,
     Cmrc2018Dataset,

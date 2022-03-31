@@ -36,7 +36,7 @@ class PretrainPrompt(nn.Module):
         # print("######loss=",loss)
         # print("IBPloss=",IBP_loss)
         loss = loss + IBP_loss
-        return loss, acc, prompt_logits
+        return IBP_loss,loss, acc, prompt_logits
         # loss = prompt_embedding.sum(dim=0).sum(dim=0).sum(dim=0)
         # return loss, torch.tensor(0)
 

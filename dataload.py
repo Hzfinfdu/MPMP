@@ -78,7 +78,7 @@ class BasicDataset:
                 dataset = load_dataset(self.path, split='validation')
         else:
             dataset = load_dataset(self.path, split=split)
-        return dataset.map(self.convert_examples, remove_columns=dataset.column_names)
+        return dataset.map(self.convert_examples, remove_columns=dataset.column_names).filter(lambda x: len(x['input_ids']) <= 512)
 
     @staticmethod
     def collate(batch_input):
@@ -558,53 +558,37 @@ class xnliDataset(TCNLIBasicDataset):
         return f'意思判别：“{example["text1"]}”与“{example["text2"]}”的关系是？选项：'
 
 Dataset_list = [
-    AFQMCDataset,
+    # AFQMCDataset,
     # OcnliDataset,
-<<<<<<< Updated upstream
-    # PawsDataset,
+    PawsDataset,
     # CMNLIDataset,
-    # ChnSentiCorpDataset,
+    ChnSentiCorpDataset,
     # THUCNewsDataset,
     # # PawsDataset,
-    # # BQDataset,
-    # # ChipCtcDataset,
-    DRCDDataset,
-    # # DogWhistleDataset,
+    BQDataset,
+    ChipCtcDataset,
+    # DRCDDataset,
+    DogWhistleDataset,
     # # CSLDataset,
-    # # FinReDataset,
-    DuReaderChecklistDataset,
-    DuReaderRobustDataset,
-=======
-    PawsDataset,
-    # # CMNLIDataset,
-    # ChnSentiCorpDataset,
-    THUCNewsDataset,
-    # BQDataset,
-    # ChipCtcDataset,
-    # # CAILDataset,
-    # # DRCDDataset,
-    # DogWhistleDataset,
-    # CSLDataset,
-    # FinReDataset,
-    # # DuReaderChecklistDataset,
-    # # DuReaderRobustDataset,
->>>>>>> Stashed changes
-    # ChipStsDataset,
+    FinReDataset,
+    # DuReaderChecklistDataset,
+    # DuReaderRobustDataset,
+    ChipStsDataset,
     # C3Dataset,
-    Cmrc2018Dataset,
+    # Cmrc2018Dataset,
     # ClueWSCDataset,
-    # # Fudan_tcDataset,
+    Fudan_tcDataset,
     # # iflytekDataset,
-    # KUAKE_QICDataset,
+    KUAKE_QICDataset,
     # KUAKE_QQRDataset,
-    # LCQMCDataset,
+    LCQMCDataset,
     # # nlpcc_emotion_tcDataset,
-    # nlpcc_tcDataset,
-    # SanWenDataset,
-    # tnewsDataset,
-    # toutiao_tcDataset,
+    nlpcc_tcDataset,
+    SanWenDataset,
+    tnewsDataset,
+    toutiao_tcDataset,
     # xnliDataset,
-    # nlpcc_dbqaDataset,
+    nlpcc_dbqaDataset,
 ]
 
 num_datasets = len(Dataset_list)

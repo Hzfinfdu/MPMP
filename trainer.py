@@ -48,6 +48,8 @@ class MutitaskTrainer(object):
         self.print_every = args.print_every
         self.anneal_rate = args.anneal_rate
         self.anneal_min = args.anneal_min
+        self.total_loss = 0.
+        self.total_ibp_loss = 0.
         self.steps = 0
         self.best_acc = 0
         self.best_step = 0
@@ -105,7 +107,9 @@ class MutitaskTrainer(object):
         self.model.prompt_embed_model.train()
         self.model.model.eval()
         self.model.zero_grad()
-        loss, acc, prompt_logits = self.model(**batch)
+        ibp_loss, loss, acc, prompt_logits = self.model(**batch)
+        self.total_ibp_loss += ibp_loss.item()
+        self.total_loss += loss.item()
         self.steps += 1
         if self.steps % 1000 == 0: print(prompt_logits)
 
@@ -113,10 +117,14 @@ class MutitaskTrainer(object):
         self.optim.step()
         self.optim.zero_grad()
         # print(f'step {self.steps}', torch.cuda.memory_summary())
-        if self.steps % self.print_every == 0:
-            write_summary("train_loss", loss.item() / self.print_every, self.steps)
+        if self.steps % self.print_every == self.print_every - 1:
+            write_summary("train_loss", self.total_loss / self.print_every, self.steps)
+            write_summary("ibp_loss", self.total_ibp_loss / self.print_every, self.steps)
             write_summary("train_acc", acc.item(), self.steps)
-            self.logger.info(f" - Step {self.steps}: loss {loss.item() / self.print_every}")
+            self.logger.info(f" - Step {self.steps}: loss {self.total_loss / self.print_every}")
+            self.logger.info(f" - Step {self.steps}: ibp loss {self.total_ibp_loss / self.print_every}")
+            self.total_loss = 0.
+            self.total_ibp_loss = 0.
         if self.scheduler is not None:
             self.scheduler.step()
 

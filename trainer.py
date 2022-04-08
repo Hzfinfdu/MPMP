@@ -1,13 +1,13 @@
 import copy
 import numpy as np
 from modeling_cpt import CPTForConditionalGeneration
-from transformers import BertTokenizer
 import torch
-from dataload import TrainDataLoader, get_dataloaders
+from dataload import TrainDataLoader, get_dataloaders, num_datasets, tokenizer, Dataset_list
 from tqdm import tqdm
 import os
 import fastNLP
 import time
+from torch.distributions.relaxed_bernoulli import RelaxedBernoulli
 
 
 # tokenizer = BertTokenizer.from_pretrained("fnlp/cpt-large")
@@ -22,17 +22,12 @@ import time
 # listA = [torch.rand(d,D) for i in range(prompt_num)]
 #
 
-def write_summary(*args):
-    with open('./logs/logs.txt', 'a+') as f:
-        print(*args, file=f)
-
 
 class MutitaskTrainer(object):
     def __init__(self, args, model, optimizer, scheduler=None):
         """
         :param model: 模型
         :param optimizer: 优化器
-        :param log_path: TensorboardX存储文件夹
         :param save_path: 模型存储位置
         :param accumulation_steps: 累积梯度
         :param print_every: 评估间隔
@@ -48,8 +43,8 @@ class MutitaskTrainer(object):
         self.print_every = args.print_every
         self.anneal_rate = args.anneal_rate
         self.anneal_min = args.anneal_min
+        self.n_prompt_tokens = args.n_prompt_tokens
         self.total_loss = 0.
-        self.total_ibp_loss = 0.
         self.steps = 0
         self.best_acc = 0
         self.best_step = 0
@@ -69,7 +64,23 @@ class MutitaskTrainer(object):
         if not os.path.exists('./logs'):
             os.makedirs('./logs', exist_ok=True)
 
+    def write_summary(self, *args):
+        with open(os.path.join(self.save_path, 'logs.txt'), 'a+') as f:
+            print(*args, file=f)
+
+    def preview_datasets(self):
+        for i in range(num_datasets):
+            batch, task_id = next(self.train_loader)
+            info_str = ('-----------------------------------------\n'
+                f'Dataset [{Dataset_list[task_id].__name__}] with task id [{task_id}].\n'
+                f'An example: [{tokenizer.decode(batch["input_ids"][0][self.n_prompt_tokens + 1:])}]\n'
+                f'Its label is [{tokenizer.decode(batch["input_ids"][0][batch["start_positions"][0]: batch["end_positions"][0] + 1])}]\n'
+                '-----------------------------------------\n')
+            self.logger.info(info_str)
+            self.write_summary(info_str)
+
     def train(self):
+        self.preview_datasets()
         for param in self.model.model.parameters():
             param.requires_grad = False
         for param in self.model.prompt_embed_model.parameters():
@@ -79,7 +90,7 @@ class MutitaskTrainer(object):
         self.logger.info("Start training...")
         for i_step in tqdm(range(self.n_steps)):
             self._train_step()
-            self.anneal(i_step)
+            # self.anneal(i_step)
             if i_step % self.eval_every == self.eval_every - 1:
                 dev_loss, dev_acc = self._eval_epoch()
                 mean_acc = sum(dev_acc) / len(dev_acc)
@@ -88,6 +99,7 @@ class MutitaskTrainer(object):
                 for task, value in enumerate(dev_acc):
                     eval_str += f", task {task} acc {value}"
                 self.logger.info(eval_str)
+                self.write_summary(eval_str)
 
                 if mean_acc > self.best_acc:
                     self.best_acc = mean_acc
@@ -96,35 +108,38 @@ class MutitaskTrainer(object):
                     self._save_model()
                     self.logger.info("Model saved.")
 
-                    self.logger.info(f"Current best acc [{self.best_acc}] occured at step [{self.best_step}].")
+                    self.logger.info(f"Current best acc [{self.best_acc}] occurred at step [{self.best_step}].")
         self.logger.info("Training finished. Elapse {:.4f} hours.".format((time.time() - total_time) / 3600))
 
     def _train_step(self):
         batch, task_id = next(self.train_loader)
         batch['task_id'] = task_id
         for k, v in batch.items():
-            batch[k] = v.to(self.device)
+            if batch[k] is not None:
+                batch[k] = v.to(self.device)
         self.model.prompt_embed_model.train()
         self.model.model.eval()
         self.model.zero_grad()
-        ibp_loss, loss, acc, prompt_logits = self.model(**batch)
-        self.total_ibp_loss += ibp_loss.item()
+        loss, acc = self.model(**batch)
         self.total_loss += loss.item()
         self.steps += 1
-        if self.steps % 1000 == 0: print(prompt_logits)
+        if self.steps % 1000 == 0:
+            print(self.model.prompt_embed_model.prompt_logits)
+            # prompt_logits = RelaxedBernoulli(temperature=self.model.prompt_embed_model.temperature, logits=self.model.prompt_embed_model.prompt_logits).sample()
+            # prompt_logits = prompt_logits / (prompt_logits.sum(dim=-1, keepdim=True) + 1e-12)
+            # print(prompt_logits)
+
 
         loss.backward()
         self.optim.step()
         self.optim.zero_grad()
         # print(f'step {self.steps}', torch.cuda.memory_summary())
         if self.steps % self.print_every == self.print_every - 1:
-            write_summary("train_loss", self.total_loss / self.print_every, self.steps)
-            write_summary("ibp_loss", self.total_ibp_loss / self.print_every, self.steps)
-            write_summary("train_acc", acc.item(), self.steps)
+            self.write_summary("train_loss", self.total_loss / self.print_every, self.steps)
+            # self.write_summary("train_acc", acc.item(), self.steps)
             self.logger.info(f" - Step {self.steps}: loss {self.total_loss / self.print_every}")
-            self.logger.info(f" - Step {self.steps}: ibp loss {self.total_ibp_loss / self.print_every}")
+            # self.logger.info(f" - Step {self.steps}: temperature {self.model.prompt_embed_model.temperature}")
             self.total_loss = 0.
-            self.total_ibp_loss = 0.
         if self.scheduler is not None:
             self.scheduler.step()
 
@@ -132,16 +147,18 @@ class MutitaskTrainer(object):
         self.logger.info("Evaluating...")
         dev_losses = []
         dev_accs = []
-        self.model.eval()
+        self.model.model.eval()
+        self.model.prompt_embed_model.eval()
         with torch.no_grad():
             for id_, dev_loader in enumerate(self.dev_loaders):
                 total_loss, total_acc = 0., 0.
                 for i, batch in tqdm(enumerate(dev_loader)):
                     batch['task_id'] = torch.tensor([id_])
                     for k, v in batch.items():
-                        batch[k] = v.to(self.device)
+                        if batch[k] is not None:
+                            batch[k] = v.to(self.device)
                     batch['is_train'] = False
-                    loss, acc, _ = self.model(**batch)
+                    loss, acc = self.model(**batch)
                     total_loss += loss.item()
                     total_acc += acc
                 total_loss /= len(dev_loader)
@@ -159,5 +176,5 @@ class MutitaskTrainer(object):
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         torch.save(self.model.prompt_embed_model.state_dict(), save_path)
 
-    def anneal(self, i_step):
-        self.model.prompt_embed_model.temperature = max(self.anneal_min, self.model.prompt_embed_model.temperature * np.exp(-self.anneal_rate * i_step))
+    # def anneal(self, i_step):
+    #     self.model.prompt_embed_model.temperature = max(self.anneal_min, self.model.prompt_embed_model.temperature * np.exp(-self.anneal_rate * i_step))

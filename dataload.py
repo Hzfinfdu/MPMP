@@ -76,10 +76,10 @@ class BasicDataset:
         if not self.has_test:
             if split == 'train':
                 dataset = load_dataset(self.path, split='train')
-                dataset = dataset.train_test_split(test_size=.2, shuffle=False)['train']
+                dataset = dataset.train_test_split(test_size=.1, shuffle=False)['train']
             elif split == 'validation':
                 dataset = load_dataset(self.path, split='train')
-                dataset = dataset.train_test_split(test_size=.2, shuffle=False)['test']
+                dataset = dataset.train_test_split(test_size=.1, shuffle=False)['test']
             else:
                 dataset = load_dataset(self.path, split='validation')
         else:
@@ -116,17 +116,23 @@ class TCNLIBasicDataset(BasicDataset):
     def __init__(self, path, n_prompt_tokens, has_test, labellist, label_mask):
         super(TCNLIBasicDataset, self).__init__(path, has_test, n_prompt_tokens)
         self.labellist = labellist
-        self.options = '，'.join(self.labellist)
-        self.max_input_len = 510 - len(self.options) - n_prompt_tokens
-        self.option_ids = tokenizer.encode(self.options)[1:]
+        self.option_ids = [tokenizer.encode(opt)[1:-1] for opt in labellist]
+        self.option_lens = [len(opt) for opt in self.option_ids]
+        self.option_starts = [0]
+        for i in range(1, len(labellist)):
+            self.option_starts.append(self.option_starts[i - 1] + 1 + self.option_lens[i - 1])
+        self.max_input_len = 511 - sum(self.option_lens) - len(labellist) - n_prompt_tokens
         self.label_mask = label_mask
+        self.option_ids_list = []
+        for i in self.option_ids:
+            self.option_ids_list.extend(i + [8024])
 
     def convert_examples(self, example):
         input_ids = [101] + self.init_prompt + tokenizer.encode(self.input_template(example))[1:-1][:self.max_input_len]
         input_ids_len = len(input_ids)
-        start_positions = self.options.find(self.labellist[int(example['label'])]) + input_ids_len
+        start_positions = self.option_starts[int(example['label'])] + input_ids_len
         return {
-            'input_ids': input_ids + self.option_ids,
+            'input_ids': input_ids + self.option_ids_list,
             'start_positions': start_positions,
             'end_positions': start_positions + len(self.labellist[int(example['label'])]) - 1,
             'label_mask': [0] * input_ids_len + self.label_mask + [1],
@@ -181,10 +187,14 @@ class ExtractiveQABasicDataset(BasicDataset):
             start_positions = 9 + self.n_prompt_tokens
             end_positions = start_positions + 3
         else:
-            start_positions = context_ids.char_to_token(
-                example['answer_start']) + self.n_prompt_tokens + self.hard_prompt_len
-            end_positions = context_ids.char_to_token(
-                example['answer_start'] + len(example['answer_text']) - 1) + self.n_prompt_tokens + self.hard_prompt_len
+            try:
+                start_positions = context_ids.char_to_token(
+                    example['answer_start']) + self.n_prompt_tokens + self.hard_prompt_len
+                end_positions = context_ids.char_to_token(
+                    example['answer_start'] + len(example['answer_text']) - 1) + self.n_prompt_tokens + self.hard_prompt_len
+            except:
+                print(example['question'])
+                exit()
         input_ids = [101] + self.init_prompt + self.hard_prompt + context_ids['input_ids'][1:-1] + tokenizer.encode(
             f'问题"{example["question"]}')[1:]
         return {
@@ -228,7 +238,7 @@ class PawsDataset(TCNLIBasicDataset):
             path='/remote-home/share/ChineseData/chineseeval/paws/paws.py',
             labellist=["矛盾", "中立", "蕴含"],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 1, 1, 0, 1, 1, 0]
         )
 
@@ -256,7 +266,7 @@ class ChnSentiCorpDataset(TCNLIBasicDataset):
             path='/remote-home/share/ChineseData/chineseeval/chnsenticorp/chnsenticorp.py',
             labellist=["负面", "正面"],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 1, 1, 0]
         )
 
@@ -270,7 +280,7 @@ class THUCNewsDataset(TCNLIBasicDataset):
             path='/remote-home/share/ChineseData/chineseeval/THUCNews/thuc_news.py',
             labellist=["体育", "娱乐", "财经", "教育", "时尚", "八卦", "游戏", "社会", "科技", "经济"],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 1] * 9 + [1, 0]
         )
 
@@ -359,7 +369,7 @@ class FinReDataset(TCNLIBasicDataset):
                        '帮助', '发行', '商讨', '合并', '竞争', '订单', '减持', '合资', '收购', '借壳', '欠款', '被发行', '被转让', '被成立', '被注资',
                        '被持股', '被拥有', '被收购', '被帮助', '被借壳', '被买资', '被欠款', '被增持', '拟收购', '被减持', '被分析', '被入股', '被拟收购'],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 1] * 27 + [1, 0, 0, 1] * 16 + [1, 0, 0, 0]
         )
 
@@ -372,7 +382,7 @@ class C3Dataset(MultipleChoiceQABasicDataset):
         super(C3Dataset, self).__init__(
             path='/remote-home/share/ChineseData/chineseeval/C3/C3.py',
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True
+            has_test=False
         )
 
     def input_template(self, example):
@@ -384,7 +394,7 @@ class DogWhistleDataset(MultipleChoiceQABasicDataset):
         super(DogWhistleDataset, self).__init__(
             path='/remote-home/share/ChineseData/chineseeval/Dog_whistle/dog_whistle.py',
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True
+            has_test=False
         )
 
     def input_template(self, example):
@@ -396,7 +406,7 @@ class DogWhistleDataset(MultipleChoiceQABasicDataset):
 #         super(CAILDataset, self).__init__(
 #             path='/remote-home/share/ChineseData/chineseeval/CAIL/CAIL.py',
 #             n_prompt_tokens=n_prompt_tokens,
-#             has_test=True,
+#             has_test=False,
 #             has_is_impossible=True
 #         )
 
@@ -416,7 +426,7 @@ class DRCDDataset(ExtractiveQABasicDataset):
         super(DRCDDataset, self).__init__(
             path='/remote-home/share/ChineseData/chineseeval/drcd/drcd.py',
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             has_is_impossible=False
         )
 
@@ -448,7 +458,7 @@ class Fudan_tcDataset(TCNLIBasicDataset):
             labellist=["艺术", "文学", "教育", "哲学", "历史", "空间", "能源", "电力", "交流",
                        "计算机", "矿业", "运输", "环境", "建筑", "金融", "法律", "医药", "军事", "政治", "体育"],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 1] * 9 + [1, 0, 0, 1] + [1, 0, 1] * 9 + [1, 0]
         )
 
@@ -484,7 +494,7 @@ class KUAKE_QICDataset(TCNLIBasicDataset):
             path='/remote-home/share/ChineseData/chineseeval/KUAKE_QIC/KUAKE_QIC.py',
             labellist=["治疗方案", "疾病表述", "指标解读", "病情诊断", "就医建议", "注意事项", "后果表述", "病因分析", "功效作用", "医疗费用", "其他"],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 0, 0, 1] * 10 + [1, 0]
         )
 
@@ -514,7 +524,7 @@ class KUAKE_QQRDataset(TCNLIBasicDataset):
             path='/remote-home/share/ChineseData/chineseeval/KUAKE_QQR/KUAKE_QQR.py',
             labellist=["矛盾", "中立", "蕴含"],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 1, 1, 0, 1, 1, 0]
         )
 
@@ -541,7 +551,7 @@ class LCQMCDataset(TCNLIBasicDataset):
             path='/remote-home/share/ChineseData/chineseeval/LCQMC/LCQMC.py',
             labellist=["匹配", "不符"],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 1, 1, 0]
         )
 
@@ -568,7 +578,7 @@ class nlpcc_tcDataset(TCNLIBasicDataset):
             path='/remote-home/share/ChineseData/chineseeval/nlpcc_tc/nlpcc_tc.py',
             labellist=["负面", "正面"],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 1, 1, 0]
         )
 
@@ -582,7 +592,7 @@ class SanWenDataset(TCNLIBasicDataset):
             path='/remote-home/share/ChineseData/chineseeval/SanWen/sanwen.py',
             labellist=["未知", "创建", "使用", "贴近", "位于", "占有", "社会相关", "家庭关系", "一般与特别", "部分与整体"],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 1] * 6 + [1, 0, 0, 0, 1] * 2 + [1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0]
         )
 
@@ -597,7 +607,7 @@ class tnewsDataset(TCNLIBasicDataset):
             labellist=["房产", "汽车", "金融", "体育", "文化", "娱乐", "教育", "科技", "军事", "旅游", "世界", "农业", "股票",
                        "游戏", "故事"],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 1] * 14 + [1, 0]
         )
 
@@ -612,7 +622,7 @@ class toutiao_tcDataset(TCNLIBasicDataset):
             labellist=["房产", "汽车", "金融", "体育", "文化", "娱乐", "教育", "科技", "军事", "旅游", "世界", "农业", "股票",
                        "游戏", "故事"],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 1] * 14 + [1, 0]
         )
 
@@ -639,7 +649,7 @@ class CoteBdDataset(ExtractiveQABasicDataset):
         super(CoteBdDataset, self).__init__(
             path='/remote-home/share/ChineseData/chineseeval/COTE_BD/cote_bd.py',
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             has_is_impossible=False
         )
 
@@ -649,7 +659,7 @@ class CoteDpDataset(ExtractiveQABasicDataset):
         super(CoteDpDataset, self).__init__(
             path='/remote-home/share/ChineseData/chineseeval/COTE_DP/cote_dp.py',
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             has_is_impossible=False
         )
 
@@ -659,7 +669,7 @@ class CoteMfwDataset(ExtractiveQABasicDataset):
         super(CoteMfwDataset, self).__init__(
             path='/remote-home/share/ChineseData/chineseeval/COTE_MFW/cote_mfw.py',
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             has_is_impossible=False
         )
 
@@ -670,7 +680,7 @@ class AmazonDataset(TCNLIBasicDataset):
             path='/remote-home/share/ChineseData/chineseeval/amazon/amazon.py',
             labellist=["非常差", "较差", '一般', '较好', '非常好'],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 0, 1] + [1, 0, 1] * 3 + [1, 0, 0]
         )
 
@@ -684,7 +694,7 @@ class BaoxianzhidaoDataset(TCNLIBasicDataset):
             path='/remote-home/share/ChineseData/chineseeval/baoxianzhidao/baoxianzhidao.py',
             labellist=["符合", "不符"],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 1, 1, 0]
         )
 
@@ -698,7 +708,7 @@ class DianxinzhidaoDataset(TCNLIBasicDataset):
             path='/remote-home/share/ChineseData/chineseeval/dianxinzhidao/dianxinzhidao.py',
             labellist=["符合", "不符"],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 1, 1, 0]
         )
 
@@ -712,7 +722,7 @@ class FinancezhidaoDataset(TCNLIBasicDataset):
             path='/remote-home/share/ChineseData/chineseeval/financezhidao/financezhidao.py',
             labellist=["符合", "不符"],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 1, 1, 0]
         )
 
@@ -726,7 +736,7 @@ class LawzhidaoDataset(TCNLIBasicDataset):
             path='/remote-home/share/ChineseData/chineseeval/lawzhidao/lawzhidao.py',
             labellist=["符合", "不符"],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 1, 1, 0]
         )
 
@@ -740,7 +750,7 @@ class LiantongzhidaoDataset(TCNLIBasicDataset):
             path='/remote-home/share/ChineseData/chineseeval/liantongzhidao/liantongzhidao.py',
             labellist=["符合", "不符"],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 1, 1, 0]
         )
 
@@ -754,7 +764,7 @@ class NonghangzhidaoDataset(TCNLIBasicDataset):
             path='/remote-home/share/ChineseData/chineseeval/nonghangzhidao/nonghangzhidao.py',
             labellist=["符合", "不符"],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 1, 0, 1, 1]
         )
 
@@ -768,7 +778,7 @@ class TouzizhidaoDataset(TCNLIBasicDataset):
             path='/remote-home/share/ChineseData/chineseeval/touzizhidao/touzizhidao.py',
             labellist=["符合", "不符"],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 1, 1, 0]
         )
 
@@ -794,7 +804,7 @@ class DianpingDataset(TCNLIBasicDataset):
             path='/remote-home/share/ChineseData/chineseeval/dianping/dianping.py',
             labellist=["非常差", "较差", '一般', '较好', '非常好'],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 0, 1] + [1, 0, 1] * 3 + [1, 0, 0]
         )
 
@@ -808,7 +818,7 @@ class DMSCDataset(TCNLIBasicDataset):
             path='/remote-home/share/ChineseData/chineseeval/dmsc/dmsc.py',
             labellist=["非常差", "较差", '一般', '较好', '非常好'],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 0, 1] + [1, 0, 1] * 3 + [1, 0, 0]
         )
 
@@ -822,7 +832,7 @@ class OnlineShppingDataset(TCNLIBasicDataset):
             path='/remote-home/share/ChineseData/chineseeval/online_shopping/online_shopping.py',
             labellist=["负面", "正面"],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 1, 1, 0]
         )
 
@@ -836,7 +846,7 @@ class WaimaiDataset(TCNLIBasicDataset):
             path='/remote-home/share/ChineseData/chineseeval/waimai/waimai.py',
             labellist=["负面", "正面"],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 1, 1, 0]
         )
 
@@ -850,7 +860,7 @@ class WeiboSentimentDataset(TCNLIBasicDataset):
             path='/remote-home/share/ChineseData/chineseeval/weibo_sentiment/weibo_sentiment.py',
             labellist=["负面", "正面"],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
+            has_test=False,
             label_mask=[1, 0, 1, 1, 0]
         )
 
@@ -859,67 +869,59 @@ class WeiboSentimentDataset(TCNLIBasicDataset):
 
 
 Dataset_list = [
-    # # AFQMCDataset,
-    # # OcnliDataset,
-    # # # CMNLIDataset,
+    AFQMCDataset,
+    # OcnliDataset,
+    CMNLIDataset,
     # ChnSentiCorpDataset,
-    # THUCNewsDataset,
-    # PawsDataset,
-    # BQDataset,
-    # ChipCtcDataset,
-    # # # DRCDDataset,
-    # DogWhistleDataset,
-    # # # # CSLDataset,
-    # FinReDataset,
-    # DuReaderChecklistDataset,
-    # DuReaderRobustDataset,
-    # ChipStsDataset,
-    # # C3Dataset,
-    # # Cmrc2018Dataset,
-    # # ClueWSCDataset,
-    # # Fudan_tcDataset,
-    # # iflytekDataset,
-    # KUAKE_QICDataset,
-    # # KUAKE_QQRDataset,
-    # # LCQMCDataset,
-    # # nlpcc_emotion_tcDataset,
-    # nlpcc_tcDataset,
-    # SanWenDataset,
-    # tnewsDataset,
-    # toutiao_tcDataset,
-    # xnliDataset,
-    # nlpcc_dbqaDataset,
-    # CoteMfwDataset,
-    # CoteDpDataset,
+    THUCNewsDataset,
+    PawsDataset,
+    BQDataset,
+    ChipCtcDataset,
+    # DRCDDataset,
+    DogWhistleDataset,
+    CSLDataset,
+    FinReDataset,
+    DuReaderChecklistDataset,
+    DuReaderRobustDataset,
+    ChipStsDataset,
+    # C3Dataset,
+    Cmrc2018Dataset,
+    ClueWSCDataset,
+    Fudan_tcDataset,
+    KUAKE_QICDataset,
+    KUAKE_QQRDataset,
+    # LCQMCDataset,
+    nlpcc_tcDataset,
+    SanWenDataset,
+    tnewsDataset,
+    toutiao_tcDataset,
+    xnliDataset,
+    nlpcc_dbqaDataset,
+    CoteMfwDataset,
+    CoteDpDataset,
     # CoteBdDataset,
-    # AmazonDataset,
+    AmazonDataset,
     BaoxianzhidaoDataset,
     CCPMDataset,
-    # DianpingDataset,
-    # DianxinzhidaoDataset,
-    # DMSCDataset,
-    # FinancezhidaoDataset,
-    # LawzhidaoDataset,
-    # LiantongzhidaoDataset,
-    # NonghangzhidaoDataset,
-    # OnlineShppingDataset,
-    # TouzizhidaoDataset,
-    # WaimaiDataset,
-    # WeiboSentimentDataset
+    DianpingDataset,
+    DianxinzhidaoDataset,
+    DMSCDataset,
+    FinancezhidaoDataset,
+    LawzhidaoDataset,
+    LiantongzhidaoDataset,
+    NonghangzhidaoDataset,
+    OnlineShppingDataset,
+    TouzizhidaoDataset,
+    WaimaiDataset,
+    WeiboSentimentDataset
 ]
 
 num_datasets = len(Dataset_list)
 
 if __name__ == '__main__':
-    aa = get_dataloaders()
-    for loader in aa:
-        for a in loader:
-            label_mask = a['label_mask']
-            input_ids = a['input_ids']
-            nz = (label_mask.nonzero().view(-1, 4) - torch.LongTensor([0, 0, 0, 1], device=label_mask.device)).view(-1, 2).t()
-            sp = input_ids[nz[0], nz[1]].view(32, -1, 2)[:, :, 0]
-            ep = input_ids[nz[0], nz[1]].view(32, -1, 2)[:, :, 1]
-            print(tokenizer.decode(sp[0]), tokenizer.decode(ep[0]))
-            # labels = l[l.nonzero()].squeeze()
-            # print(tokenizer.decode(labels.numpy().tolist()))
-            # print(tokenizer.decode(a['input_ids'][a['start_positions']: a['end_positions'] + 1]))
+    for ds in Dataset_list:
+        a = ds().get_dataset('validation')
+        for i in range(80):
+            aa = a[i]
+            print(tokenizer.decode(aa['input_ids'][aa['start_positions']: aa['end_positions'] + 1]))
+

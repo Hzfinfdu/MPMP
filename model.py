@@ -17,11 +17,11 @@ from transformers import BertTokenizer
 # Taks2Prompt = torch.rand(Task_num,prompt_token_num)
 
 class PretrainPrompt(nn.Module):
-    def __init__(self, d, prompt_token_num, n_tasks, n_prompts):
+    def __init__(self, d, prompt_token_num, n_tasks, n_prompts, init_temperature):
         super(PretrainPrompt, self).__init__()
         # self.tokenizer = BertTokenizer.from_pretrained("fnlp/cpt-large")
         self.model = CPTForQuestionAnswering.from_pretrained("fnlp/cpt-large")
-        self.prompt_embed_model = PromptChoice(d, self.model.config.hidden_size, prompt_token_num, n_tasks, n_prompts)
+        self.prompt_embed_model = PromptChoice(d, self.model.config.hidden_size, prompt_token_num, n_tasks, n_prompts, init_temperature)
         # self.prompt_embedding = nn.Parameter(torch.zeros(32, 50, 1024))
 
     def forward(self, input_ids, start_positions, end_positions, task_id, label_mask=None, label=None, is_train=True):
@@ -52,7 +52,7 @@ class PretrainPrompt(nn.Module):
 
 
 class PromptChoice(nn.Module):
-    def __init__(self, d, hidden_size, prompt_token_num, n_tasks, n_prompts):
+    def __init__(self, d, hidden_size, prompt_token_num, n_tasks, n_prompts, init_temperature):
         super(PromptChoice, self).__init__()
         self.prompt_logits = nn.Parameter(torch.empty((n_tasks, n_prompts)).uniform_(-1e-3, 1e-3))
         # self.Z = nn.Parameter(torch.rand(n_prompts, d, 1))
@@ -63,6 +63,7 @@ class PromptChoice(nn.Module):
         self.n_tasks = n_tasks
         self.n_prompts = n_prompts
         self.EPS = 1e-12
+        self.temperature = init_temperature
         # self.ibp_alpha = ibp_alpha
         # self.ibp_omg = ibp_omg
 
@@ -70,7 +71,7 @@ class PromptChoice(nn.Module):
         prompt_logits = self.prompt_logits[task_id]
         # try:
         if is_train:
-            prompt_logits = RelaxedBernoulli(temperature=1., logits=prompt_logits).rsample()
+            prompt_logits = RelaxedBernoulli(temperature=self.temperature, logits=prompt_logits).rsample()
         else:
             prompt_logits = torch.sigmoid(prompt_logits)
 

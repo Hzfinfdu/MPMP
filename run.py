@@ -9,14 +9,13 @@ import os
 
 
 parser = argparse.ArgumentParser()
-# parser.add_argument("--task_name", default='sst2', type=str)
 parser.add_argument("--n_prompt_tokens", default=50, type=int)
 parser.add_argument("--intrinsic_dim", default=500, type=int)
 parser.add_argument("--save_every", default=10000, type=int)
 parser.add_argument("--batch_size", default=6, type=int)
-parser.add_argument("--n_steps", default=400000, type=int)
+parser.add_argument("--n_steps", default=2000000, type=int)
 parser.add_argument("--print_every", default=1000, type=int)
-parser.add_argument("--eval_every", default=50000, type=int)
+parser.add_argument("--eval_every", default=100000, type=int)
 parser.add_argument("--device", default='cuda:0', type=str)
 parser.add_argument("--n_prompts", default=4, type=int)
 parser.add_argument("--seed", default=42, type=int)
@@ -24,7 +23,7 @@ parser.add_argument("--lr_router", default=.005, type=float)
 parser.add_argument("--lr_prompt", default=.001, type=float)
 parser.add_argument("--anneal_rate", default=None, type=float)
 parser.add_argument("--anneal_min", default=.05, type=float)
-parser.add_argument("--init_temperature", default=3., type=float)
+parser.add_argument("--init_temperature", default=1., type=float)
 parser.add_argument("--step_size1", default=None, type=int)
 parser.add_argument("--step_size2", default=10000, type=int)
 parser.add_argument("--gamma1", default=.1, type=float)
@@ -44,6 +43,14 @@ class Optim:
     def zero_grad(self):
         self.optimizer1.zero_grad()
         self.optimizer2.zero_grad()
+
+    def state_dict(self):
+        return {
+            'optimizer1': self.optimizer1.state_dict(),
+            'optimizer2': self.optimizer2.state_dict()
+        }
+
+
 
 
 class Scheduler:

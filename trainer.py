@@ -48,8 +48,6 @@ class MutitaskTrainer(object):
             f'Saves every {self.save_every} steps\n'
             '---------End of Trainer info----------\n'
         )
-        if not os.path.exists('./logs'):
-            os.makedirs('./logs', exist_ok=True)
 
     def _write_summary(self, *args):
         with open(os.path.join(self.save_path, 'logs.txt'), 'a+') as f:
@@ -153,7 +151,8 @@ class MutitaskTrainer(object):
         save_path = os.path.join(self.save_path, "best.th")
         torch.save({
             'skilled_prompts': self.model.prompt_embed_model.state_dict(),
-            'lmhead': self.model.model.qa_outputs.weight
+            'lmhead': self.model.model.qa_outputs.weight,
+            'optimizer': self.optim.state_dict()
         }, save_path)
 
     def _dump_model_state(self, name):
@@ -161,7 +160,8 @@ class MutitaskTrainer(object):
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         torch.save({
             'skilled_prompts': self.model.prompt_embed_model.state_dict(),
-            'lmhead': self.model.model.qa_outputs.weight
+            'lmhead': self.model.model.qa_outputs.weight,
+            'optimizer': self.optim.state_dict()
         }, save_path)
 
     def _anneal(self, i_step):

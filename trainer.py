@@ -59,7 +59,7 @@ class MutitaskTrainer(object):
         for i in range(num_datasets):
             batch, task_id = next(self.train_loader)
             info_str = ('-----------------------------------------\n'
-                        f'Dataset [{Dataset_list[task_id].__name__}] with task id [{task_id}].\n'
+                        f'Dataset [{Dataset_list[task_id].__name__}] with task id [{task_id.item()}].\n'
                         f'An example: [{tokenizer.decode(batch["input_ids"][0][self.n_prompt_tokens + 1:])}]\n'
                         f'Its label is [{tokenizer.decode(batch["input_ids"][0][batch["start_positions"][0]: batch["end_positions"][0] + 1])}]\n'
                         '-----------------------------------------\n')

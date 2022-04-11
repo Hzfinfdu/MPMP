@@ -53,6 +53,10 @@ class MutitaskTrainer(object):
         with open(os.path.join(self.save_path, 'logs.txt'), 'a+') as f:
             print(*args, file=f)
 
+    def _write_router(self):
+        with open(os.path.join(self.save_path, 'router.txt'), 'a+') as f:
+            print(f' - Step {self.steps}: {self.model.prompt_embed_model.prompt_logits}')
+
     def _preview_datasets(self):
         for i in range(num_datasets):
             batch, task_id = next(self.train_loader)
@@ -116,6 +120,7 @@ class MutitaskTrainer(object):
         self.optim.zero_grad()
         if self.steps % self.print_every == self.print_every - 1:
             self._write_summary("train_loss", self.total_loss / self.print_every, self.steps)
+            self._write_router()
             self.logger.info(f" - Step {self.steps}: router {self.model.prompt_embed_model.prompt_logits}")
             self.logger.info(f" - Step {self.steps}: loss {self.total_loss / self.print_every}")
             self.logger.info(f" - Step {self.steps}: temperature {self.model.prompt_embed_model.temperature}")

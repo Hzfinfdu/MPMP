@@ -39,7 +39,7 @@ class PretrainPrompt(nn.Module):
                                 (end_positions == outputs.end_logits.argmax(dim=1)).long()).sum() / batch_size
             else:
                 # label_mask = torch.tensor(label_mask)
-                nz = (label_mask.nonzero().view(-1, 4) - torch.LongTensor([0, 0, 0, 1], device=label_mask.device)).view(-1, 2).t()
+                nz = (label_mask.nonzero().reshape(-1, 4) - torch.LongTensor([0, 0, 0, 1]).cuda()).reshape(-1, 2).t()
                 start_logits = outputs.start_logits[nz[0], nz[1]].view(batch_size, -1, 2)[:, :, 0]
                 end_logits = outputs.end_logits[nz[0], nz[1]].view(batch_size, -1, 2)[:, :, 1]
                 probs = torch.mul(start_logits, end_logits)

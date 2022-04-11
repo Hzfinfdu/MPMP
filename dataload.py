@@ -76,10 +76,12 @@ class BasicDataset:
         if not self.has_test:
             if split == 'train':
                 dataset = load_dataset(self.path, split='train')
-                dataset = dataset.train_test_split(test_size=.1, shuffle=False)['train']
+                test_size = .1 if len(dataset) < 1e5 else 8192
+                dataset = dataset.train_test_split(test_size=test_size, shuffle=False)['train']
             elif split == 'validation':
                 dataset = load_dataset(self.path, split='train')
-                dataset = dataset.train_test_split(test_size=.1, shuffle=False)['test']
+                test_size = .1 if len(dataset) < 1e5 else 8192
+                dataset = dataset.train_test_split(test_size=test_size, shuffle=False)['test']
             else:
                 dataset = load_dataset(self.path, split='validation')
         else:
@@ -187,14 +189,10 @@ class ExtractiveQABasicDataset(BasicDataset):
             start_positions = 9 + self.n_prompt_tokens
             end_positions = start_positions + 3
         else:
-            try:
-                start_positions = context_ids.char_to_token(
-                    example['answer_start']) + self.n_prompt_tokens + self.hard_prompt_len
-                end_positions = context_ids.char_to_token(
-                    example['answer_start'] + len(example['answer_text']) - 1) + self.n_prompt_tokens + self.hard_prompt_len
-            except:
-                print(example['question'])
-                exit()
+            start_positions = context_ids.char_to_token(
+                example['answer_start']) + self.n_prompt_tokens + self.hard_prompt_len
+            end_positions = context_ids.char_to_token(
+                example['answer_start'] + len(example['answer_text']) - 1) + self.n_prompt_tokens + self.hard_prompt_len
         input_ids = [101] + self.init_prompt + self.hard_prompt + context_ids['input_ids'][1:-1] + tokenizer.encode(
             f'问题"{example["question"]}')[1:]
         return {
@@ -893,7 +891,7 @@ Dataset_list = [
     # LCQMCDataset,
     nlpcc_tcDataset,
     SanWenDataset,
-    tnewsDataset,
+    # tnewsDataset,
     toutiao_tcDataset,
     xnliDataset,
     nlpcc_dbqaDataset,
@@ -921,7 +919,5 @@ num_datasets = len(Dataset_list)
 if __name__ == '__main__':
     for ds in Dataset_list:
         a = ds().get_dataset('validation')
-        for i in range(80):
-            aa = a[i]
-            print(tokenizer.decode(aa['input_ids'][aa['start_positions']: aa['end_positions'] + 1]))
+        print(ds.__name__, len(a))
 

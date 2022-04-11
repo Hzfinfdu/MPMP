@@ -763,7 +763,7 @@ class NonghangzhidaoDataset(TCNLIBasicDataset):
             labellist=["符合", "不符"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
-            label_mask=[1, 1, 0, 1, 1]
+            label_mask=[1, 0, 1, 1, 0]
         )
 
     def input_template(self, example):

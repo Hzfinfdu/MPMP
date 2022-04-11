@@ -55,7 +55,7 @@ class MutitaskTrainer(object):
 
     def _write_router(self):
         with open(os.path.join(self.save_path, 'router.txt'), 'a+') as f:
-            print(f' - Step {self.steps}: {self.model.prompt_embed_model.prompt_logits}')
+            print(f' - Step {self.steps}: {self.model.prompt_embed_model.prompt_logits}', file=f)
 
     def _preview_datasets(self):
         for i in range(num_datasets):

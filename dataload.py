@@ -76,11 +76,11 @@ class BasicDataset:
         if not self.has_test:
             if split == 'train':
                 dataset = load_dataset(self.path, split='train')
-                test_size = .1 if len(dataset) < 1e5 else 8192
+                test_size = .1 if len(dataset) < 81920 else 8192
                 dataset = dataset.train_test_split(test_size=test_size, shuffle=False)['train']
             elif split == 'validation':
                 dataset = load_dataset(self.path, split='train')
-                test_size = .1 if len(dataset) < 1e5 else 8192
+                test_size = .1 if len(dataset) < 81920 else 8192
                 dataset = dataset.train_test_split(test_size=test_size, shuffle=False)['test']
             else:
                 dataset = load_dataset(self.path, split='validation')

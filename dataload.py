@@ -869,15 +869,15 @@ class WeiboSentimentDataset(TCNLIBasicDataset):
 Dataset_list = [
     AFQMCDataset,
     # OcnliDataset,
+    PawsDataset,
     CMNLIDataset,
     # ChnSentiCorpDataset,
+    CSLDataset,
     THUCNewsDataset,
-    PawsDataset,
     BQDataset,
     ChipCtcDataset,
     # DRCDDataset,
     DogWhistleDataset,
-    CSLDataset,
     FinReDataset,
     DuReaderChecklistDataset,
     DuReaderRobustDataset,
@@ -895,12 +895,12 @@ Dataset_list = [
     toutiao_tcDataset,
     xnliDataset,
     nlpcc_dbqaDataset,
-    CoteMfwDataset,
-    CoteDpDataset,
     # CoteBdDataset,
+    CoteDpDataset,
+    CoteMfwDataset,
+    CCPMDataset,
     AmazonDataset,
     BaoxianzhidaoDataset,
-    CCPMDataset,
     DianpingDataset,
     DianxinzhidaoDataset,
     DMSCDataset,
@@ -917,7 +917,6 @@ Dataset_list = [
 num_datasets = len(Dataset_list)
 
 if __name__ == '__main__':
-    for ds in Dataset_list:
-        a = ds().get_dataset('validation')
-        print(ds.__name__, len(a))
+    a = CSLDataset().get_dataset('validation').num_rows
+    print(a)
 

@@ -35,7 +35,7 @@ class TrainDataLoader:
 def get_dataloaders(batch_size=32, split='validation'):
     dev_dataset = [cls().get_dataset(split) for cls in Dataset_list]
     return [
-        torch.utils.data.DataLoader(ds, batch_size=batch_size, drop_last=True, shuffle=True,
+        torch.utils.data.DataLoader(ds, batch_size=batch_size, drop_last=True, shuffle=False,
                                     collate_fn=BasicDataset.collate, pin_memory=True)
         for ds in dev_dataset
     ]
@@ -77,11 +77,11 @@ class BasicDataset:
             if split == 'train':
                 dataset = load_dataset(self.path, split='train')
                 test_size = .1 if len(dataset) < 122880 else 12288
-                dataset = dataset.train_test_split(test_size=test_size, shuffle=False)['train']
+                dataset = dataset.train_test_split(test_size=test_size, shuffle=True, seed=42)['train']
             elif split == 'validation':
                 dataset = load_dataset(self.path, split='train')
                 test_size = .1 if len(dataset) < 122880 else 12288
-                dataset = dataset.train_test_split(test_size=test_size, shuffle=False)['test']
+                dataset = dataset.train_test_split(test_size=test_size, shuffle=True, seed=42)['test']
             else:
                 dataset = load_dataset(self.path, split='validation')
         else:

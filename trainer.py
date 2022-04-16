@@ -191,5 +191,5 @@ class MutitaskTrainer(object):
         trainer.best_acc = mean_acc
         trainer.best_step = steps
         print('Recover finished')
-        trainer._write_summary(f'Training recovered from step {steps}')
+        trainer._write_summary(f'Training recovered from step {steps}, performance at this step is {mean_acc}')
         return trainer

@@ -1,12 +1,10 @@
 import copy
-from datasets import load_dataset, concatenate_datasets
+from datasets import load_dataset, concatenate_datasets, DatasetDict
 import torch
 import random
 from transformers import BertTokenizerFast
 from torch.nn.utils.rnn import pad_sequence
 
-# torch.manual_seed(42)
-# random.seed(42)
 tokenizer = BertTokenizerFast.from_pretrained("fnlp/cpt-large")
 
 
@@ -36,7 +34,7 @@ def get_dataloaders(batch_size=32, split='validation'):
     dev_dataset = [cls().get_dataset(split) for cls in Dataset_list]
     return [
         torch.utils.data.DataLoader(ds, batch_size=batch_size, drop_last=True, shuffle=False,
-                                    collate_fn=BasicDataset.collate, pin_memory=True)
+                                    collate_fn=BasicDataset.collate)
         for ds in dev_dataset
     ]
 
@@ -82,8 +80,12 @@ class BasicDataset:
                 dataset = load_dataset(self.path, split='train')
                 test_size = .1 if len(dataset) < 122880 else 12288
                 dataset = dataset.train_test_split(test_size=test_size, shuffle=True, seed=42)['test']
-            else:
+            elif split == 'test':
                 dataset = load_dataset(self.path, split='validation')
+            elif split == 'downstream':
+                dataset = load_dataset(self.path, split='downstream')
+            else:
+                raise ValueError(f'split `{split}` not supported')
         else:
             dataset = load_dataset(self.path, split=split)
         return dataset.map(self.convert_examples, remove_columns=dataset.column_names)
@@ -110,8 +112,7 @@ class BasicDataset:
         }
 
     def get_infinite_dataloader(self, batch_size=32):
-        return InfiniteDataLoader(self.get_dataset(), batch_size=batch_size, drop_last=True, shuffle=True,
-                                  collate_fn=self.collate)
+        return InfiniteDataLoader(self.get_dataset(), batch_size=batch_size, drop_last=True, shuffle=True, collate_fn=self.collate)
 
 
 class TCNLIBasicDataset(BasicDataset):
@@ -141,6 +142,18 @@ class TCNLIBasicDataset(BasicDataset):
             'label': int(example['label'])
         }
 
+    def get_dataset(self, split='train', k_shot=32, seed=42):
+        dataset = self._get_dataset(split)
+        if split == 'downstream':
+            dataset_grouped_by_label = [dataset.filter(lambda example: example['label'] == i) for i in range(len(self.labellist))]
+            for i in range(len(self.labellist)):
+                assert dataset_grouped_by_label[i].num_rows >= 2 * k_shot
+                dataset_grouped_by_label[i] = dataset_grouped_by_label[i].shuffle(seed=seed).select(list(range(2 * k_shot))).train_test_split(test_size=k_shot, shuffle=False)
+            train_dataset = concatenate_datasets([ds['train'] for ds in dataset_grouped_by_label])
+            dev_dataset = concatenate_datasets([ds['test'] for ds in dataset_grouped_by_label])
+            dataset = DatasetDict(train=train_dataset, dev=dev_dataset)
+        return dataset
+
 
 class MultipleChoiceQABasicDataset(BasicDataset):
     def __init__(self, path, n_prompt_tokens, has_test):
@@ -149,7 +162,6 @@ class MultipleChoiceQABasicDataset(BasicDataset):
 
     def convert_examples(self, example):
         input_ids = [101] + self.init_prompt + tokenizer.encode(self.input_template(example))[1:-1]
-
         options = [tokenizer.encode(opt)[1:-1] for opt in example['options']]
         option_len = [len(opt) for opt in options]
         label_mask = []
@@ -169,6 +181,15 @@ class MultipleChoiceQABasicDataset(BasicDataset):
             'label': label
         }
 
+    def get_dataset(self, split='train', k_shot=32, seed=42):
+        dataset = self._get_dataset(split)
+        if split == 'downstream':
+            dataset = dataset.shuffle(seed=seed)
+            assert dataset.num_rows >= 2 * k_shot
+            dataset = dataset.select(list(range(2 * k_shot))).train_test_split(test_size=k_shot, shuffle=False)
+            dataset['dev'] = dataset.pop('test')
+        return dataset
+
 
 class ExtractiveQABasicDataset(BasicDataset):
     def __init__(self, path, n_prompt_tokens, has_test, has_is_impossible):
@@ -180,8 +201,14 @@ class ExtractiveQABasicDataset(BasicDataset):
         self.hard_prompt_len = len(self.hard_prompt)
         self.has_is_impossible = has_is_impossible
 
-    def get_dataset(self, split='train'):
-        return self._get_dataset(split).filter(lambda x: len(x['input_ids']) <= 512)
+    def get_dataset(self, split='train', k_shot=32, seed=42):
+        dataset = self._get_dataset(split).filter(lambda x: len(x['input_ids']) <= 512)
+        if split == 'downstream':
+            dataset = dataset.shuffle(seed=seed)
+            assert dataset.num_rows >= 2 * k_shot
+            dataset = dataset.select(list(range(2 * k_shot))).train_test_split(test_size=k_shot, shuffle=False)
+            dataset['dev'] = dataset.pop('test')
+        return dataset
 
     def convert_examples(self, example):
         context_ids = tokenizer(example['context'])
@@ -917,6 +944,6 @@ Dataset_list = [
 num_datasets = len(Dataset_list)
 
 if __name__ == '__main__':
-    a = CSLDataset().get_dataset('validation').num_rows
-    print(a)
+    a = ChnSentiCorpDataset().get_dataset('downstream', k_shot=32, seed=42)
+    print(a['train']['label'])
 

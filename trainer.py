@@ -9,7 +9,6 @@ import fastNLP
 import time
 from torch.distributions.relaxed_bernoulli import RelaxedBernoulli
 
-
 class MutitaskTrainer(object):
     def __init__(self, args, model, optimizer, scheduler=None):
         """
@@ -118,7 +117,7 @@ class MutitaskTrainer(object):
         loss.backward()
         self.optim.step()
         self.optim.zero_grad()
-        if self.steps % self.print_every == self.print_every - 1:
+        if self.steps % self.print_every == 0:
             self._write_summary("train_loss", self.total_loss / self.print_every, self.steps)
             self._write_router()
             self.logger.info(f" - Step {self.steps}: router {self.model.prompt_embed_model.prompt_logits}")
@@ -157,7 +156,7 @@ class MutitaskTrainer(object):
         torch.save({
             'skilled_prompts': self.model.prompt_embed_model.state_dict(),
             'lmhead': self.model.model.qa_outputs.weight,
-            'optimizer': self.optim.state_dict()
+            'optimizer': self.optim.state_dict(),
         }, save_path)
 
     def _dump_model_state(self, name):
@@ -166,10 +165,31 @@ class MutitaskTrainer(object):
         torch.save({
             'skilled_prompts': self.model.prompt_embed_model.state_dict(),
             'lmhead': self.model.model.qa_outputs.weight,
-            'optimizer': self.optim.state_dict()
+            'optimizer': self.optim.state_dict(),
         }, save_path)
 
     def _anneal(self, i_step):
         self.model.prompt_embed_model.temperature = max(self.anneal_min,
                                                         self.model.prompt_embed_model.temperature * np.exp(
                                                             -self.anneal_rate * i_step))
+
+    @classmethod
+    def from_checkpoint(cls, args, model, optimizer, steps, scheduler=None):
+        print('Recovering...')
+        args.n_steps -= steps
+        state = torch.load(os.path.join(args.save_path, 'model', steps, '.th'))
+        model.prompt_embed_model.load_state_dict(state['skilled_prompts'])
+        model.model.qa_outputs.weight = state['lmhead']
+        optimizer.load_state_dict(state['optimizer'])
+        trainer = cls(args, model, optimizer, scheduler)
+        trainer.steps = steps
+        if trainer.anneal_rate is not None and trainer.anneal_min is not None:
+            for i in range(steps):
+                trainer._anneal(i)
+        dev_loss, dev_acc = trainer._eval_epoch()
+        mean_acc = sum(dev_acc) / len(dev_acc)
+        trainer.best_acc = mean_acc
+        trainer.best_step = steps
+        print('Recover finished')
+        trainer._write_summary(f'Training recovered from step {steps}')
+        return trainer

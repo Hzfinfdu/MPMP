@@ -74,7 +74,7 @@ class MutitaskTrainer(object):
             param.requires_grad = False
         for param in self.model.prompt_embed_model.parameters():
             param.requires_grad = True
-        self.model.model.qa_outputs.weight.requires_grad = True
+        self.model.model.qa_outputs.weight.requires_grad = False
         self.model.to(self.device)
         total_time = time.time()
         self.logger.info("Start training...")

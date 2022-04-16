@@ -22,7 +22,7 @@ parser.add_argument("--seed", default=42, type=int)
 parser.add_argument("--lr_router", default=.005, type=float)
 parser.add_argument("--lr_prompt", default=.001, type=float)
 parser.add_argument("--anneal_rate", default=None, type=float)
-parser.add_argument("--anneal_min", default=.05, type=float)
+parser.add_argument("--anneal_min", default=None, type=float)
 parser.add_argument("--init_temperature", default=1., type=float)
 parser.add_argument("--step_size1", default=None, type=int)
 parser.add_argument("--step_size2", default=10000, type=int)
@@ -73,11 +73,19 @@ torch.manual_seed(args.seed)
 
 model = PretrainPrompt(args.intrinsic_dim, args.n_prompt_tokens, num_datasets, args.n_prompts, args.init_temperature)
 # model.prompt_embed_model.load_state_dict(torch.load('/remote-home/zfhe/projects/BBT-prompt_pretrain/results/PromptTokens50_IntrinsicDim500_BatchSize8_NPrompts4_LrRouter0.005_LrPrompt0.001/models/399999.th'))
-optimizer = Optim([model.prompt_embed_model.prompt_logits], [model.prompt_embed_model.AZ, model.model.qa_outputs.weight], args.lr_router, args.lr_prompt)
+optimizer = Optim(
+    [model.prompt_embed_model.prompt_logits],
+    [
+        model.prompt_embed_model.AZ,
+        # model.model.qa_outputs.weight
+    ],
+    args.lr_router,
+    args.lr_prompt
+)
 if args.step_size1 is not None and args.step_size2 is not None and args.gamma1 is not None and args.gamma2 is not None:
     scheduler = Scheduler(optimizer, args.step_size1, args.step_size2, args.gamma1, args.gamma2)
 else:
     scheduler = None
-# trainer = MutitaskTrainer(args, model, optimizer, scheduler)
-trainer = MutitaskTrainer.from_checkpoint(args, model, optimizer, 999999, scheduler)
+trainer = MutitaskTrainer(args, model, optimizer, scheduler)
+# trainer = MutitaskTrainer.from_checkpoint(args, model, optimizer, 999999, scheduler)
 trainer.train()

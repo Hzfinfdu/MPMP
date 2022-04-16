@@ -34,7 +34,7 @@ def get_dataloaders(batch_size=32, split='validation'):
     dev_dataset = [cls().get_dataset(split) for cls in Dataset_list]
     return [
         torch.utils.data.DataLoader(ds, batch_size=batch_size, drop_last=True, shuffle=False,
-                                    collate_fn=BasicDataset.collate)
+                                    collate_fn=BasicDataset.collate, num_workers=4)
         for ds in dev_dataset
     ]
 

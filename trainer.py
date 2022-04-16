@@ -9,6 +9,7 @@ import fastNLP
 import time
 from torch.distributions.relaxed_bernoulli import RelaxedBernoulli
 
+
 class MutitaskTrainer(object):
     def __init__(self, args, model, optimizer, scheduler=None):
         """
@@ -177,7 +178,7 @@ class MutitaskTrainer(object):
     def from_checkpoint(cls, args, model, optimizer, steps, scheduler=None):
         print('Recovering...')
         args.n_steps -= steps
-        state = torch.load(os.path.join(args.save_path, 'model', steps, '.th'))
+        state = torch.load(os.path.join(args.save_path, 'models', str(steps) + '.th'))
         model.prompt_embed_model.load_state_dict(state['skilled_prompts'])
         model.model.qa_outputs.weight = state['lmhead']
         optimizer.load_state_dict(state['optimizer'])
@@ -186,6 +187,7 @@ class MutitaskTrainer(object):
         if trainer.anneal_rate is not None and trainer.anneal_min is not None:
             for i in range(steps):
                 trainer._anneal(i)
+        trainer.model.to(trainer.device)
         dev_loss, dev_acc = trainer._eval_epoch()
         mean_acc = sum(dev_acc) / len(dev_acc)
         trainer.best_acc = mean_acc

@@ -17,7 +17,7 @@ parser.add_argument("--n_steps", default=2000000, type=int)
 parser.add_argument("--print_every", default=1000, type=int)
 parser.add_argument("--eval_every", default=100000, type=int)
 parser.add_argument("--device", default='cuda:0', type=str)
-parser.add_argument("--n_prompts", default=4, type=int)
+parser.add_argument("--n_prompts", default=6, type=int)
 parser.add_argument("--seed", default=42, type=int)
 parser.add_argument("--lr_router", default=.005, type=float)
 parser.add_argument("--lr_prompt", default=.001, type=float)
@@ -50,7 +50,9 @@ class Optim:
             'optimizer2': self.optimizer2.state_dict()
         }
 
-
+    def load_state_dict(self, state_dict):
+        self.optimizer1.load_state_dict(state_dict['optimizer1'])
+        self.optimizer2.load_state_dict(state_dict['optimizer2'])
 
 
 class Scheduler:
@@ -76,5 +78,6 @@ if args.step_size1 is not None and args.step_size2 is not None and args.gamma1 i
     scheduler = Scheduler(optimizer, args.step_size1, args.step_size2, args.gamma1, args.gamma2)
 else:
     scheduler = None
-trainer = MutitaskTrainer(args, model, optimizer, scheduler)
+# trainer = MutitaskTrainer(args, model, optimizer, scheduler)
+trainer = MutitaskTrainer.from_checkpoint(args, model, optimizer, 999999, scheduler)
 trainer.train()

@@ -54,6 +54,16 @@ class Optim:
         self.optimizer1.load_state_dict(state_dict['optimizer1'])
         self.optimizer2.load_state_dict(state_dict['optimizer2'])
 
+    def cuda(self):
+        for state in self.optimizer1.state.values():
+            for k, v in state.items():
+                if isinstance(v, torch.Tensor):
+                    state[k] = v.cuda()
+
+        for state in self.optimizer2.state.values():
+            for k, v in state.items():
+                if isinstance(v, torch.Tensor):
+                    state[k] = v.cuda()
 
 class Scheduler:
     def __init__(self, optim, step1=10000, step2=10000, gamma1=.1, gamma2=.1):

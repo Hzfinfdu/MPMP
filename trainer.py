@@ -182,10 +182,7 @@ class MutitaskTrainer(object):
         model.prompt_embed_model.load_state_dict(state['skilled_prompts'])
         model.model.qa_outputs.weight = state['lmhead']
         optimizer.load_state_dict(state['optimizer'])
-        for state in optimizer.state.values():
-            for k, v in state.items():
-                if isinstance(v, torch.Tensor):
-                    state[k] = v.cuda()
+        optimizer.cuda()
         trainer = cls(args, model, optimizer, scheduler)
         trainer.steps = steps
         if trainer.anneal_rate is not None and trainer.anneal_min is not None:

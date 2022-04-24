@@ -181,13 +181,13 @@ class MutitaskTrainer(object):
         state = torch.load(os.path.join(args.save_path, 'models', str(steps) + '.th'))
         model.prompt_embed_model.load_state_dict(state['skilled_prompts'])
         model.model.qa_outputs.weight = state['lmhead']
-        optimizer.load_state_dict(state['optimizer'])
         trainer = cls(args, model, optimizer, scheduler)
         trainer.steps = steps
         if trainer.anneal_rate is not None and trainer.anneal_min is not None:
             for i in range(steps):
                 trainer._anneal(i)
         trainer.model.to(trainer.device)
+        trainer.optim.load_state_dict(state['optimizer'])
         dev_loss, dev_acc = trainer._eval_epoch()
         mean_acc = sum(dev_acc) / len(dev_acc)
         trainer.best_acc = mean_acc

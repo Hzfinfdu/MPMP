@@ -81,7 +81,7 @@ class MutitaskTrainer(object):
         for i_step in tqdm(range(self.n_steps)):
             self._train_step()
             if self.anneal_rate is not None and self.anneal_min is not None:
-                self._anneal(i_step)
+                self._anneal(self.steps)
             if i_step % self.eval_every == self.eval_every - 1:
                 dev_loss, dev_acc = self._eval_epoch()
                 mean_acc = sum(dev_acc) / len(dev_acc)
@@ -94,7 +94,7 @@ class MutitaskTrainer(object):
 
                 if mean_acc > self.best_acc:
                     self.best_acc = mean_acc
-                    self.best_step = i_step
+                    self.best_step = self.steps
                     self.logger.info("Updating best model...")
                     self._save_model()
                     self.logger.info("Model saved.")

@@ -85,7 +85,7 @@ class MutitaskTrainer(object):
             if i_step % self.eval_every == self.eval_every - 1:
                 dev_loss, dev_acc = self._eval_epoch()
                 mean_acc = sum(dev_acc) / len(dev_acc)
-                self._dump_model_state(f"{i_step}.th")
+                self._dump_model_state(f"{self.steps}.th")
                 eval_str = f"Validation loss {sum(dev_loss) / len(dev_loss)}, avg acc {mean_acc}"
                 for task, value in enumerate(dev_acc):
                     eval_str += f", task {task} acc {value}"

@@ -28,6 +28,18 @@ from packaging import version
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
+import math
+import os
+import warnings
+from dataclasses import dataclass
+from typing import Optional, Tuple
+
+import torch
+import torch.utils.checkpoint
+from packaging import version
+from torch import nn
+from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+
 from transformers.activations import ACT2FN
 from transformers.file_utils import (
     ModelOutput,
@@ -55,7 +67,7 @@ from transformers.modeling_utils import (
 )
 from transformers.utils import logging
 from transformers.models.bert.configuration_bert import BertConfig
-
+from torch.distributions.relaxed_bernoulli import RelaxedBernoulli
 
 logger = logging.get_logger(__name__)
 
@@ -525,11 +537,25 @@ class BertLayer(nn.Module):
 
 
 class BertEncoder(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, prefix_config):
         super().__init__()
         self.config = config
         self.layer = nn.ModuleList([BertLayer(config) for _ in range(config.num_hidden_layers)])
         self.gradient_checkpointing = False
+        if prefix_config is not None:
+            self.prefix_config = prefix_config
+            self.temperature = self.prefix_config['temperature']
+            self.task_id = 0
+            self.router = nn.Parameter(data=torch.empty((
+                prefix_config['n_tasks'],
+                config.num_hidden_layers,
+                prefix_config['n_prompts']
+            )).uniform_(-1e-3, 1e-3))
+            self.prompt = nn.Parameter(data=torch.empty((
+                config.num_hidden_layers,
+                prefix_config['n_prompts'],
+                prefix_config['n_prompt_tokens'] * config.hidden_size
+            )).uniform_(-1e-3, 1e-3))
 
     def forward(
         self,
@@ -548,10 +574,29 @@ class BertEncoder(nn.Module):
         all_self_attentions = () if output_attentions else None
         all_cross_attentions = () if output_attentions and self.config.add_cross_attention else None
 
+        if self.prefix_config is not None:
+            hidden_shape = hidden_states.shape
+            router = self.router[self.task_id].squeeze()  # layer * n_prompts
+            # try:
+            if self.training:
+                router = RelaxedBernoulli(temperature=self.temperature, logits=router).rsample()  # layer * n_prompts
+            else:
+                router = torch.sigmoid(router)  # layer * n_prompts
+            router = (router / (router.sum(dim=-1, keepdim=True) + 1e-12)).unsqueeze(1)  # layer * 1 * n_prompts
+            prompt_embedding = torch.bmm(router, self.prompt).view(self.config.num_hidden_layers, -1, self.config.hidden_size)  # layer * n_prompt_token * hidden
+
         next_decoder_cache = () if use_cache else None
         for i, layer_module in enumerate(self.layer):
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
+
+            if self.prefix_config is not None:
+                prompt_padding = torch.zeros(hidden_shape[0], hidden_shape[1] - self.prefix_config['n_prompt_tokens'] - 1, self.config.hidden_size).to(hidden_states.device)
+                extended_prompt_embedding = torch.cat([prompt_embedding[i].tile(hidden_shape[0], 1, 1), prompt_padding], dim=1)
+                pre_padding = torch.zeros(hidden_shape[0], 1, self.config.hidden_size).to(hidden_states.device)
+                extended_prompt_embedding = torch.cat([pre_padding, extended_prompt_embedding], dim=1)  # for <CLS>
+                # extended_prompt_embedding = extended_prompt_embedding.repeat(input_shape[0], 1, 1)
+                hidden_states = hidden_states + extended_prompt_embedding
 
             layer_head_mask = head_mask[i] if head_mask is not None else None
             past_key_value = past_key_values[i] if past_key_values is not None else None
@@ -858,12 +903,12 @@ class BertModel(BertPreTrainedModel):
     input to the forward pass.
     """
 
-    def __init__(self, config, add_pooling_layer=True):
+    def __init__(self, config, prefix_config, add_pooling_layer=True):
         super().__init__(config)
         self.config = config
 
         self.embeddings = BertEmbeddings(config)
-        self.encoder = BertEncoder(config)
+        self.encoder = BertEncoder(config, prefix_config)
 
         self.pooler = BertPooler(config) if add_pooling_layer else None
 
@@ -905,7 +950,6 @@ class BertModel(BertPreTrainedModel):
         output_attentions=None,
         output_hidden_states=None,
         return_dict=None,
-        prompt_embedding=None,
     ):
         r"""
         encoder_hidden_states  (:obj:`torch.FloatTensor` of shape :obj:`(batch_size, sequence_length, hidden_size)`, `optional`):
@@ -993,18 +1037,6 @@ class BertModel(BertPreTrainedModel):
             inputs_embeds=inputs_embeds,
             past_key_values_length=past_key_values_length,
         )
-
-        # add prompt_embedding
-
-        bsz, n_prompt_tokens, prompt_dim = prompt_embedding.shape
-        prompt_padding = torch.zeros(bsz, input_shape[1] - n_prompt_tokens - 1, prompt_dim).to(
-            embedding_output.device)
-        extended_prompt_embedding = torch.cat([prompt_embedding, prompt_padding], dim=1)
-        pre_padding = torch.zeros(bsz, 1, prompt_dim).to(embedding_output.device)
-        extended_prompt_embedding = torch.cat([pre_padding, extended_prompt_embedding], dim=1)  # for <CLS>
-        # extended_prompt_embedding = extended_prompt_embedding.repeat(input_shape[0], 1, 1)
-        embedding_output = embedding_output + extended_prompt_embedding
-
         encoder_outputs = self.encoder(
             embedding_output,
             attention_mask=extended_attention_mask,

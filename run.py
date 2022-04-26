@@ -13,7 +13,7 @@ parser.add_argument("--n_prompt_tokens", default=50, type=int)
 parser.add_argument("--intrinsic_dim", default=500, type=int)
 parser.add_argument("--save_every", default=10000, type=int)
 parser.add_argument("--batch_size", default=6, type=int)
-parser.add_argument("--n_steps", default=2000000, type=int)
+parser.add_argument("--n_steps", default=4000000, type=int)
 parser.add_argument("--print_every", default=1000, type=int)
 parser.add_argument("--eval_every", default=100000, type=int)
 parser.add_argument("--device", default='cuda:0', type=str)
@@ -82,12 +82,13 @@ args.save_path = save_path
 torch.manual_seed(args.seed)
 
 model = PretrainPrompt(args.intrinsic_dim, args.n_prompt_tokens, num_datasets, args.n_prompts, args.init_temperature)
+
 # model.prompt_embed_model.load_state_dict(torch.load('/remote-home/zfhe/projects/BBT-prompt_pretrain/results/PromptTokens50_IntrinsicDim500_BatchSize8_NPrompts4_LrRouter0.005_LrPrompt0.001/models/399999.th'))
 optimizer = Optim(
-    [model.prompt_embed_model.prompt_logits],
+    [model.model.model.encoder.encoder.router],
     [
-        model.prompt_embed_model.AZ,
-        # model.model.qa_outputs.weight
+        model.model.model.encoder.encoder.prompt,
+        model.model.qa_outputs.weight
     ],
     args.lr_router,
     args.lr_prompt

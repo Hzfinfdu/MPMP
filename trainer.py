@@ -55,7 +55,7 @@ class MutitaskTrainer(object):
 
     def _write_router(self):
         with open(os.path.join(self.save_path, 'router.txt'), 'a+') as f:
-            print(f' - Step {self.steps}: {self.model.prompt_embed_model.prompt_logits}', file=f)
+            print(f' - Step {self.steps}: {self.model.model.model.encoder.encoder.router}', file=f)
 
     def _preview_datasets(self):
         for i in range(num_datasets):
@@ -72,9 +72,9 @@ class MutitaskTrainer(object):
         self._preview_datasets()
         for param in self.model.model.model.parameters():
             param.requires_grad = False
-        for param in self.model.prompt_embed_model.parameters():
-            param.requires_grad = True
-        self.model.model.qa_outputs.weight.requires_grad = False
+        self.model.model.model.encoder.encoder.router.requires_grad = True
+        self.model.model.model.encoder.encoder.prompt.requires_grad = True
+        self.model.model.qa_outputs.weight.requires_grad = True
         self.model.to(self.device)
         total_time = time.time()
         self.logger.info("Start training...")
@@ -108,9 +108,7 @@ class MutitaskTrainer(object):
         for k, v in batch.items():
             if batch[k] is not None:
                 batch[k] = v.to(self.device)
-        self.model.prompt_embed_model.train()
-        self.model.model.model.eval()
-        self.model.model.qa_outputs.train()
+        self.model.model.train()
         self.model.zero_grad()
         loss, acc = self.model(**batch)
         self.total_loss += loss.item()
@@ -133,7 +131,6 @@ class MutitaskTrainer(object):
         dev_losses = []
         dev_accs = []
         self.model.model.eval()
-        self.model.prompt_embed_model.eval()
         with torch.no_grad():
             for id_, dev_loader in enumerate(self.dev_loaders):
                 total_loss, total_acc = 0., 0.
@@ -155,7 +152,8 @@ class MutitaskTrainer(object):
     def _save_model(self):
         save_path = os.path.join(self.save_path, "best.th")
         torch.save({
-            'skilled_prompts': self.model.prompt_embed_model.state_dict(),
+            'prompt': self.model.model.model.encoder.encoder.prompt,
+            'router': self.model.model.model.encoder.encoder.router,
             'lmhead': self.model.model.qa_outputs.weight,
             'optimizer': self.optim.state_dict(),
         }, save_path)
@@ -164,7 +162,8 @@ class MutitaskTrainer(object):
         save_path = os.path.join(self.save_path, "models", name)
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         torch.save({
-            'skilled_prompts': self.model.prompt_embed_model.state_dict(),
+            'prompt': self.model.model.model.encoder.encoder.prompt,
+            'router': self.model.model.model.encoder.encoder.router,
             'lmhead': self.model.model.qa_outputs.weight,
             'optimizer': self.optim.state_dict(),
         }, save_path)

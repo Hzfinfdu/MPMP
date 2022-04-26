@@ -823,7 +823,7 @@ class CPTDecoder(CPTPretrainedModel):
     CPT_START_DOCSTRING,
 )
 class CPTModel(CPTPretrainedModel):
-    def __init__(self, config: CPTConfig):
+    def __init__(self, config: CPTConfig, prefix_config=None):
         super().__init__(config)
         encoder_config = BertConfig(
             vocab_size=config.vocab_size,
@@ -835,7 +835,7 @@ class CPTModel(CPTPretrainedModel):
             attention_probs_dropout_prob=config.attention_dropout,
         )
         config.vocab_size = encoder_config.vocab_size
-        self.encoder = BertModel(encoder_config, add_pooling_layer=False)
+        self.encoder = BertModel(encoder_config, prefix_config, add_pooling_layer=False)
         self.shared = self.encoder.get_input_embeddings()
         self.decoder = CPTDecoder(config, self.shared)
         self.num_decoder_layers = config.decoder_layers
@@ -887,7 +887,6 @@ class CPTModel(CPTPretrainedModel):
             output_attentions=None,
             output_hidden_states=None,
             return_dict=None,
-            prompt_embedding=None,
     ):
 
         # different to other models, CPT automatically creates decoder_input_ids from
@@ -918,7 +917,6 @@ class CPTModel(CPTPretrainedModel):
                 output_attentions=output_attentions,
                 output_hidden_states=True,
                 return_dict=return_dict,
-                prompt_embedding=prompt_embedding,
             )
         # If the user passed a tuple for encoder_outputs, we wrap it in a BaseModelOutput when return_dict=True
         elif return_dict and isinstance(encoder_outputs, (tuple, list)):
@@ -1293,12 +1291,12 @@ class CPTForSequenceClassification(CPTPretrainedModel):
     CPT_START_DOCSTRING,
 )
 class CPTForQuestionAnswering(CPTPretrainedModel):
-    def __init__(self, config: CPTConfig, cls_mode=1, **kwargs):
+    def __init__(self, config: CPTConfig, prefix_config, cls_mode=1, **kwargs):
         super().__init__(config, **kwargs)
         config.num_labels = 2
         self.num_labels = config.num_labels
 
-        self.model = CPTModel(config)
+        self.model = CPTModel(config, prefix_config)
 
         cls_mode = getattr(config, 'cls_mode', cls_mode)
         if cls_mode == 1:
@@ -1343,7 +1341,6 @@ class CPTForQuestionAnswering(CPTPretrainedModel):
             output_attentions=None,
             output_hidden_states=None,
             return_dict=None,
-            prompt_embedding=None,
     ):
         r"""
         start_positions (:obj:`torch.LongTensor` of shape :obj:`(batch_size,)`, `optional`):
@@ -1376,7 +1373,6 @@ class CPTForQuestionAnswering(CPTPretrainedModel):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=True,
-            prompt_embedding=prompt_embedding,
         )
 
         hidden_states = outputs.last_hidden_state

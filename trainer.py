@@ -2,10 +2,11 @@ import copy
 import numpy as np
 from modeling_cpt import CPTForConditionalGeneration
 import torch
-from dataload import TrainDataLoader, get_dataloaders, num_datasets, tokenizer, Dataset_list
+from dataload import TrainDataLoader, get_dataloaders, num_datasets, Dataset_list
 from tqdm import tqdm
 import os
 import fastNLP
+from transformers import BertTokenizerFast
 import time
 from torch.distributions.relaxed_bernoulli import RelaxedBernoulli
 
@@ -39,6 +40,7 @@ class MutitaskTrainer(object):
         self.device = args.device
         self.train_loader = TrainDataLoader(self.batch_size)
         self.dev_loaders = get_dataloaders(batch_size=self.batch_size, split='validation')
+        self.tokenizer = BertTokenizerFast.from_pretrained("fnlp/cpt-large")
         self.logger.info(
             '-------------Trainer info-------------\n'
             f'Save path {self.save_path}\n'
@@ -62,8 +64,8 @@ class MutitaskTrainer(object):
             batch, task_id = next(self.train_loader)
             info_str = ('-----------------------------------------\n'
                         f'Dataset [{Dataset_list[task_id].__name__}] with task id [{task_id.item()}].\n'
-                        f'An example: [{tokenizer.decode(batch["input_ids"][0][self.n_prompt_tokens + 1:])}]\n'
-                        f'Its label is [{tokenizer.decode(batch["input_ids"][0][batch["start_positions"][0]: batch["end_positions"][0] + 1])}]\n'
+                        f'An example: [{self.tokenizer.decode(batch["input_ids"][0][self.n_prompt_tokens + 1:])}]\n'
+                        f'Its label is [{self.tokenizer.decode(batch["input_ids"][0][batch["start_positions"][0]: batch["end_positions"][0] + 1])}]\n'
                         '-----------------------------------------\n')
             self.logger.info(info_str)
             self._write_summary(info_str)
@@ -119,9 +121,8 @@ class MutitaskTrainer(object):
         if self.steps % self.print_every == 0:
             self._write_summary("train_loss", self.total_loss / self.print_every, self.steps)
             self._write_router()
-            self.logger.info(f" - Step {self.steps}: router {self.model.prompt_embed_model.prompt_logits}")
+            self.logger.info(f" - Step {self.steps}: router {self.model.model.model.encoder.encoder.router}")
             self.logger.info(f" - Step {self.steps}: loss {self.total_loss / self.print_every}")
-            self.logger.info(f" - Step {self.steps}: temperature {self.model.prompt_embed_model.temperature}")
             self.total_loss = 0.
         if self.scheduler is not None:
             self.scheduler.step()
@@ -168,10 +169,10 @@ class MutitaskTrainer(object):
             'optimizer': self.optim.state_dict(),
         }, save_path)
 
-    def _anneal(self, i_step):
-        self.model.prompt_embed_model.temperature = max(self.anneal_min,
-                                                        self.model.prompt_embed_model.temperature * np.exp(
-                                                            -self.anneal_rate * i_step))
+    # def _anneal(self, i_step):
+    #     self.model.prompt_embed_model.temperature = max(self.anneal_min,
+    #                                                     self.model.prompt_embed_model.temperature * np.exp(
+    #                                                         -self.anneal_rate * i_step))
 
     @classmethod
     def from_checkpoint(cls, args, model, optimizer, steps, scheduler=None):

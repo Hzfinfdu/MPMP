@@ -591,9 +591,9 @@ class BertEncoder(nn.Module):
                 all_hidden_states = all_hidden_states + (hidden_states,)
 
             if self.prefix_config is not None:
-                prompt_padding = torch.zeros(hidden_shape[0], hidden_shape[1] - self.prefix_config['n_prompt_tokens'] - 1, self.config.hidden_size).to(hidden_states.device)
+                prompt_padding = torch.zeros(size=(hidden_shape[0], hidden_shape[1] - self.prefix_config['n_prompt_tokens'] - 1, self.config.hidden_size), device='cuda:0')
                 extended_prompt_embedding = torch.cat([prompt_embedding[i].tile(hidden_shape[0], 1, 1), prompt_padding], dim=1)
-                pre_padding = torch.zeros(hidden_shape[0], 1, self.config.hidden_size).to(hidden_states.device)
+                pre_padding = torch.zeros(size=(hidden_shape[0], 1, self.config.hidden_size), device='cuda:0')
                 extended_prompt_embedding = torch.cat([pre_padding, extended_prompt_embedding], dim=1)  # for <CLS>
                 # extended_prompt_embedding = extended_prompt_embedding.repeat(input_shape[0], 1, 1)
                 hidden_states = hidden_states + extended_prompt_embedding

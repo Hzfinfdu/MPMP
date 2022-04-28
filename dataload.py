@@ -5,9 +5,6 @@ import random
 from transformers import BertTokenizerFast
 from torch.nn.utils.rnn import pad_sequence
 
-tokenizer = BertTokenizerFast.from_pretrained("fnlp/cpt-large")
-
-
 class TrainDataLoader:
     """
     封装了全部细节，只需要一直next，就可以保证每|NumOfDataset|个iter必每个任务都出现一遍，并且顺序随机。
@@ -54,6 +51,7 @@ class InfiniteDataLoader:
 
 class BasicDataset:
     offset = 1000
+    tokenizer = BertTokenizerFast.from_pretrained("fnlp/cpt-large")
 
     def __init__(self, path, has_test=False, n_prompt_tokens=50):
         self.path = path
@@ -112,14 +110,14 @@ class BasicDataset:
         }
 
     def get_infinite_dataloader(self, batch_size=32):
-        return InfiniteDataLoader(self.get_dataset(), batch_size=batch_size, drop_last=True, shuffle=True, collate_fn=self.collate)
+        return InfiniteDataLoader(self.get_dataset(), batch_size=batch_size, drop_last=True, shuffle=True, collate_fn=self.collate, num_workers=2)
 
 
 class TCNLIBasicDataset(BasicDataset):
     def __init__(self, path, n_prompt_tokens, has_test, labellist, label_mask):
         super(TCNLIBasicDataset, self).__init__(path, has_test, n_prompt_tokens)
         self.labellist = labellist
-        self.option_ids = [tokenizer.encode(opt)[1:-1] for opt in labellist]
+        self.option_ids = [self.tokenizer.encode(opt)[1:-1] for opt in labellist]
         self.option_lens = [len(opt) for opt in self.option_ids]
         self.option_starts = [0]
         for i in range(1, len(labellist)):
@@ -131,7 +129,7 @@ class TCNLIBasicDataset(BasicDataset):
             self.option_ids_list.extend(i + [8024])
 
     def convert_examples(self, example):
-        input_ids = [101] + self.init_prompt + tokenizer.encode(self.input_template(example))[1:-1][:self.max_input_len]
+        input_ids = [101] + self.init_prompt + self.tokenizer.encode(self.input_template(example))[1:-1][:self.max_input_len]
         input_ids_len = len(input_ids)
         start_positions = self.option_starts[int(example['label'])] + input_ids_len
         return {
@@ -161,8 +159,8 @@ class MultipleChoiceQABasicDataset(BasicDataset):
         self.max_len = 510 - n_prompt_tokens
 
     def convert_examples(self, example):
-        input_ids = [101] + self.init_prompt + tokenizer.encode(self.input_template(example))[1:-1]
-        options = [tokenizer.encode(opt)[1:-1] for opt in example['options']]
+        input_ids = [101] + self.init_prompt + self.tokenizer.encode(self.input_template(example))[1:-1]
+        options = [self.tokenizer.encode(opt)[1:-1] for opt in example['options']]
         option_len = [len(opt) for opt in options]
         label_mask = []
         option_seq = []
@@ -195,9 +193,9 @@ class ExtractiveQABasicDataset(BasicDataset):
     def __init__(self, path, n_prompt_tokens, has_test, has_is_impossible):
         super(ExtractiveQABasicDataset, self).__init__(path, has_test, n_prompt_tokens)
         if has_is_impossible:
-            self.hard_prompt = tokenizer.encode('抽取式问答（可能没有答案）：文本"')[1:-1]
+            self.hard_prompt = self.tokenizer.encode('抽取式问答（可能没有答案）：文本"')[1:-1]
         else:
-            self.hard_prompt = tokenizer.encode('抽取式问答：文本"')[1:-1]
+            self.hard_prompt = self.tokenizer.encode('抽取式问答：文本"')[1:-1]
         self.hard_prompt_len = len(self.hard_prompt)
         self.has_is_impossible = has_is_impossible
 
@@ -211,7 +209,7 @@ class ExtractiveQABasicDataset(BasicDataset):
         return dataset
 
     def convert_examples(self, example):
-        context_ids = tokenizer(example['context'])
+        context_ids = self.tokenizer(example['context'])
         if self.has_is_impossible and example['is_impossible']:
             start_positions = 9 + self.n_prompt_tokens
             end_positions = start_positions + 3
@@ -220,7 +218,7 @@ class ExtractiveQABasicDataset(BasicDataset):
                 example['answer_start']) + self.n_prompt_tokens + self.hard_prompt_len
             end_positions = context_ids.char_to_token(
                 example['answer_start'] + len(example['answer_text']) - 1) + self.n_prompt_tokens + self.hard_prompt_len
-        input_ids = [101] + self.init_prompt + self.hard_prompt + context_ids['input_ids'][1:-1] + tokenizer.encode(
+        input_ids = [101] + self.init_prompt + self.hard_prompt + context_ids['input_ids'][1:-1] + self.tokenizer.encode(
             f'问题"{example["question"]}')[1:]
         return {
             'input_ids': input_ids,

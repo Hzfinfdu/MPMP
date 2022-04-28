@@ -28,6 +28,7 @@ parser.add_argument("--step_size1", default=None, type=int)
 parser.add_argument("--step_size2", default=10000, type=int)
 parser.add_argument("--gamma1", default=.1, type=float)
 parser.add_argument("--gamma2", default=.1, type=float)
+parser.add_argument("--accumulation_step", default=4, type=int)
 args = parser.parse_args()
 
 

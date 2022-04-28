@@ -38,6 +38,7 @@ class MutitaskTrainer(object):
         self.best_step = 0
         self.model = model
         self.device = args.device
+        self.accumulation_step = args.accumulation_step
         self.train_loader = TrainDataLoader(self.batch_size)
         self.dev_loaders = get_dataloaders(batch_size=self.batch_size, split='validation')
         self.tokenizer = BertTokenizerFast.from_pretrained("fnlp/cpt-large")
@@ -76,7 +77,7 @@ class MutitaskTrainer(object):
             param.requires_grad = False
         self.model.model.model.encoder.encoder.router.requires_grad = True
         self.model.model.model.encoder.encoder.prompt.requires_grad = True
-        self.model.model.qa_outputs.weight.requires_grad = True
+        self.model.model.qa_outputs.requires_grad = True
         self.model.to(self.device)
         total_time = time.time()
         self.logger.info("Start training...")
@@ -111,19 +112,20 @@ class MutitaskTrainer(object):
             if batch[k] is not None:
                 batch[k] = v.to(self.device)
         self.model.model.train()
-        self.model.zero_grad()
         loss, acc = self.model(**batch)
         self.total_loss += loss.item()
         self.steps += 1
         loss.backward()
-        self.optim.step()
-        self.optim.zero_grad()
         if self.steps % self.print_every == 0:
             self._write_summary("train_loss", self.total_loss / self.print_every, self.steps)
             self._write_router()
             self.logger.info(f" - Step {self.steps}: router {self.model.model.model.encoder.encoder.router}")
             self.logger.info(f" - Step {self.steps}: loss {self.total_loss / self.print_every}")
             self.total_loss = 0.
+        if self.steps % self.accumulation_step == 0:
+            self.optim.step()
+            self.optim.zero_grad()
+            self.model.zero_grad()
         if self.scheduler is not None:
             self.scheduler.step()
 

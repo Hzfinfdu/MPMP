@@ -9,4 +9,10 @@ pip install cma
 pip install fastNLP
 pip install sklearn
 pip install bayesian-optimization
-pip install scipy```
+pip install scipy
+```
+
+## Example
+```bash
+python deepbbt.py<or bbt.py> --init_prompt_path <path to your ckpt, currently not publicly available> --task_name 'thucnews' --seed 13
+```

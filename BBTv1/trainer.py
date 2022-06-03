@@ -243,18 +243,18 @@ class DownstreamTrainer:
         self.seed = args.seed
         self.model = model
         self.device = args.device
-        data = C3Dataset().get_dataset(split='downstream', k_shot=32, seed=self.seed)
+        data = iflytekDataset().get_dataset(split='downstream', k_shot=8, seed=self.seed)
         train_data = data['train']
         eval_data = data['dev']
         print(train_data.__len__())
         print(eval_data.__len__())
-        test_data = C3Dataset().get_dataset(split='test')
+        test_data = iflytekDataset().get_dataset(split='test')
         print(test_data.__len__())
         self.trainloader = torch.utils.data.DataLoader(train_data, batch_size=self.batch_size, shuffle=True,
                                       collate_fn=self._collate)
-        self.evalloader = torch.utils.data.DataLoader(eval_data, batch_size=1, shuffle=False,
+        self.evalloader = torch.utils.data.DataLoader(eval_data, batch_size=32, shuffle=False,
                                      collate_fn=self._collate)
-        self.testloader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=False,
+        self.testloader = torch.utils.data.DataLoader(test_data, batch_size=32, shuffle=False,
                                      collate_fn=self._collate)
         self.logger.info(
             '-------------Trainer info-------------\n'

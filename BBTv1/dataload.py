@@ -236,7 +236,7 @@ class AFQMCDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path=f'{self.data_dir}/AFQMC/AFQMC.py',
-            labellist=["不同", "相似"],
+            labellist=["矛盾", "相似"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0]
@@ -250,7 +250,7 @@ class OcnliDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path=f'{self.data_dir}/ocnli/ocnli.py',
-            labellist=["矛盾", "中立", "蕴含"],
+            labellist=["矛盾", "中立", "相似"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0, 1, 1, 0]
@@ -264,10 +264,10 @@ class PawsDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path=f'{self.data_dir}/paws/paws.py',
-            labellist=["矛盾", "中立", "蕴含"],
+            labellist=["矛盾", "相似"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
-            label_mask=[1, 0, 1, 1, 0, 1, 1, 0]
+            label_mask=[1, 0, 1, 1, 0]
         )
 
     def input_template(self, example):
@@ -278,7 +278,7 @@ class CMNLIDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path=f'{self.data_dir}/CMNLI/cmnli.py',
-            labellist=["矛盾", "中立", "蕴含"],
+            labellist=["矛盾", "中立", "相似"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0, 1, 1, 0]
@@ -320,7 +320,7 @@ class BQDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super(BQDataset, self).__init__(
             path=f'{self.data_dir}/bq_corpus/bq_corpus.py',
-            labellist=["不同", "相同"],
+            labellist=["矛盾", "相似"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0]
@@ -351,7 +351,7 @@ class ChipStsDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super(ChipStsDataset, self).__init__(
             path=f'{self.data_dir}/CHIP_STS/CHIP_STS.py',
-            labellist=["不同", "相似"],
+            labellist=["矛盾", "相似"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0]
@@ -501,8 +501,6 @@ class iflytekDataset(TCNLIBasicDataset):
             labellist=[
                     "打车",
                     "租车",
-                    "婚庆",
-                    "家政",
                     "政务",
                     "新闻",
                     "漫画",
@@ -511,22 +509,24 @@ class iflytekDataset(TCNLIBasicDataset):
                     "教辅",
                     "搞笑",
                     "杂志",
-                    "百科",
                     "求职",
                     "兼职",
                     "视频",
                     "音乐",
                     "直播",
                     "电台",
-                    "K歌",
-                    "成人",
                     "职考",
                     "英语",
                     "艺术",
+                    "民航",
+                    "铁路",
+                    "工具",
+                    "母婴",
+                    "驾校",
                 ],
             n_prompt_tokens=n_prompt_tokens,
-            has_test=True,
-            label_mask=[]
+            has_test=False,
+            label_mask=[1, 0, 1] * 23 + [1, 0]
         )
 
     def input_template(self, example):
@@ -552,7 +552,7 @@ class nlpcc_dbqaDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path=f'{self.data_dir}/nlpcc_dbqa/nlpcc_dbqa.py',
-            labellist=["矛盾", "蕴含"],
+            labellist=["矛盾", "相似"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0]
@@ -567,7 +567,7 @@ class KUAKE_QQRDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path=f'{self.data_dir}/KUAKE_QQR/KUAKE_QQR.py',
-            labellist=["矛盾", "中立", "蕴含"],
+            labellist=["矛盾", "中立", "相似"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0, 1, 1, 0]
@@ -594,7 +594,7 @@ class LCQMCDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path=f'{self.data_dir}/LCQMC/LCQMC.py',
-            labellist=["不同", "相同"],
+            labellist=["矛盾", "相似"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0]
@@ -642,7 +642,7 @@ class SanWenDataset(TCNLIBasicDataset):
         )
 
     def input_template(self, example):
-        return f'关系判别：主语"{example["subject"]}"和宾语"{example["object"]}"在句子"{example["text"]}"中的关系是？选项：'
+        return f'关系判别：主体"{example["subject"]}"和客体"{example["object"]}"在句子"{example["text"]}"中的关系是？选项：'
 
 
 class tnewsDataset(TCNLIBasicDataset):
@@ -679,7 +679,7 @@ class xnliDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path=f'{self.data_dir}/xnli/xnli_zh.py',
-            labellist=["矛盾", "中立", "蕴含"],
+            labellist=["矛盾", "中立", "相似"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0, 1, 1, 0]
@@ -737,7 +737,7 @@ class BaoxianzhidaoDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path=f'{self.data_dir}/baoxianzhidao/baoxianzhidao.py',
-            labellist=["符合", "不符"],
+            labellist=["不符", "符合"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0]
@@ -751,7 +751,7 @@ class DianxinzhidaoDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path=f'{self.data_dir}/dianxinzhidao/dianxinzhidao.py',
-            labellist=["符合", "不符"],
+            labellist=["不符", "符合"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0]
@@ -765,7 +765,7 @@ class FinancezhidaoDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path=f'{self.data_dir}/financezhidao/financezhidao.py',
-            labellist=["符合", "不符"],
+            labellist=["不符", "符合"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0]
@@ -779,7 +779,7 @@ class LawzhidaoDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path=f'{self.data_dir}/lawzhidao/lawzhidao.py',
-            labellist=["符合", "不符"],
+            labellist=["不符", "符合"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0]
@@ -793,7 +793,7 @@ class LiantongzhidaoDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path=f'{self.data_dir}/liantongzhidao/liantongzhidao.py',
-            labellist=["符合", "不符"],
+            labellist=["不符", "符合"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0]
@@ -807,7 +807,7 @@ class NonghangzhidaoDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path=f'{self.data_dir}/nonghangzhidao/nonghangzhidao.py',
-            labellist=["符合", "不符"],
+            labellist=["不符", "符合"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0]
@@ -821,7 +821,7 @@ class TouzizhidaoDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path=f'{self.data_dir}/touzizhidao/touzizhidao.py',
-            labellist=["符合", "不符"],
+            labellist=["不符", "符合"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0]
@@ -919,7 +919,7 @@ Dataset_list = [
     PawsDataset,
     CMNLIDataset,
     # ChnSentiCorpDataset,
-    CSLDataset,
+    # CSLDataset,
     THUCNewsDataset,
     BQDataset,
     ChipCtcDataset,

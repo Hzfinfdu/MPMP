@@ -19,7 +19,7 @@ parser.add_argument("--eval_every", default=50000, type=int)
 parser.add_argument("--device", default='cuda:0', type=str)
 parser.add_argument("--n_prompts", default=8, type=int)
 parser.add_argument("--seed", default=42, type=int)
-parser.add_argument("--lr_router", default=.0005, type=float)
+parser.add_argument("--lr_router", default=.0001, type=float)
 parser.add_argument("--lr_prompt", default=.0001, type=float)
 parser.add_argument("--anneal_rate", default=None, type=float)
 parser.add_argument("--anneal_min", default=None, type=float)
@@ -84,20 +84,20 @@ torch.manual_seed(args.seed)
 
 model = PretrainPrompt(args.intrinsic_dim, args.n_prompt_tokens, num_datasets, args.n_prompts, args.init_temperature)
 
-# optimizer = Optim(
-#     [model.model.model.encoder.encoder.router],
-#     [
-#         model.model.model.encoder.encoder.A,
-#         model.model.model.encoder.encoder.z,
-#         model.model.qa_outputs.weight
-#     ],
-#     args.lr_router,
-#     args.lr_prompt
-# )
+optimizer = Optim(
+    [model.model.model.encoder.encoder.router],
+    [
+        model.model.model.encoder.encoder.A,
+        model.model.model.encoder.encoder.z,
+        model.model.qa_outputs.weight
+    ],
+    args.lr_router,
+    args.lr_prompt
+)
 if args.step_size1 is not None and args.step_size2 is not None and args.gamma1 is not None and args.gamma2 is not None:
     scheduler = Scheduler(optimizer, args.step_size1, args.step_size2, args.gamma1, args.gamma2)
 else:
     scheduler = None
-# trainer = MutitaskTrainer(args, model, optimizer, scheduler)
-trainer = MutitaskTrainer.from_checkpoint(args, model, Optim, 650000)
+trainer = MutitaskTrainer(args, model, optimizer, scheduler)
+# trainer = MutitaskTrainer.from_checkpoint(args, model, Optim, 650000)
 trainer.train()

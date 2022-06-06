@@ -22,7 +22,7 @@ parser.add_argument("--task_name", default='chnsenticorp', type=str)
 parser.add_argument("--k_shot", default=16, type=int)
 parser.add_argument("--batch_size", default=32, type=int)
 parser.add_argument("--budget_router", default=200, type=int)
-parser.add_argument("--budget_prompt", default=4000, type=int)
+parser.add_argument("--budget_prompt", default=1000, type=int)
 parser.add_argument("--popsize", default=20, type=int)
 parser.add_argument("--bound", default=0, type=int)
 parser.add_argument("--print_every", default=50, type=int)
@@ -230,6 +230,7 @@ Data_config = {
     'chnsenticorp': (ChnSentiCorpDataset, 16),
     'thucnews': (THUCNewsDataset, 8),
     'bq': (BQDataset, 16),
+    'iflytek': (iflytekDataset, 8),
     'drcd': (DRCDDataset, 32),
     'c3': (C3Dataset, 32),
     'cmrc2018': (Cmrc2018Dataset, 32),
@@ -312,7 +313,7 @@ router = torch.sigmoid(router)
 router = (router / (router.sum(dim=-1, keepdim=True) + 1e-12))
 
 es = cma.CMAEvolutionStrategy(
-    torch.mm(router.unsqueeze(0), model_forward_api.model.model.model.encoder.encoder.z).cpu().detach().numpy().tolist(), 0.01,
+    torch.mm(router.unsqueeze(0), model_forward_api.model.model.model.encoder.encoder.z).cpu().detach().numpy().tolist(), 0.1,
     inopts=cma_opts
 )
 

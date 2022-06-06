@@ -216,6 +216,11 @@ class MutitaskTrainer(object):
 
 
 class DownstreamTrainer:
+    dataloaders = {
+        'chnsenticorp': ChnSentiCorpDataset(),
+        'iflytek': iflytekDataset(),
+        'lcqmc': LCQMCDataset(),
+    }
     def __init__(self, args, model, optimizer, scheduler=None):
         """
         :param model: 模型
@@ -242,16 +247,17 @@ class DownstreamTrainer:
         self.seed = args.seed
         self.model = model
         self.device = args.device
-        data = AmazonDataset().get_dataset(split='downstream', k_shot=7, seed=self.seed)
+        ds = self.dataloaders[args.task_name]
+        data = ds.get_dataset(split='downstream', k_shot=args.k_shot, seed=self.seed)
         train_data = data['train']
         eval_data = data['dev']
         print(train_data.__len__())
         print(eval_data.__len__())
-        test_data = AmazonDataset().get_dataset(split='test')
+        test_data = ds.get_dataset(split='test')
         print(test_data.__len__())
         self.trainloader = torch.utils.data.DataLoader(train_data, batch_size=self.batch_size, shuffle=True,
                                       collate_fn=self._collate)
-        self.evalloader = torch.utils.data.DataLoader(eval_data, batch_size=7, shuffle=False,
+        self.evalloader = torch.utils.data.DataLoader(eval_data, batch_size=self.batch_size, shuffle=False,
                                      collate_fn=self._collate)
         self.testloader = torch.utils.data.DataLoader(test_data, batch_size=32, shuffle=False,
                                      collate_fn=self._collate)
@@ -349,6 +355,7 @@ class DownstreamTrainer:
         test_str = f"test loss {test_loss}, acc {test_acc}"
         self.logger.info(test_str)
         self.logger.info("Training finished. Elapse {:.4f} hours.".format((time.time() - total_time) / 3600))
+        return test_acc
 
     def _eval_epoch(self):
         self.model.model.eval()

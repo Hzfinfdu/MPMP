@@ -82,24 +82,24 @@ torch.manual_seed(args.seed)
 
 model = PretrainPrompt(args.intrinsic_dim, args.n_prompt_tokens, num_datasets, args.n_prompts, args.init_temperature)
 
-# model.prompt_embed_model.load_state_dict(torch.load('/remote-home/zfhe/projects/BBT-prompt_pretrain/results/PromptTokens50_IntrinsicDim500_BatchSize8_NPrompts4_LrRouter0.005_LrPrompt0.001/models/399999.th'))
-# optimizer = Optim(
-#     [model.model.model.encoder.encoder.router],
-#     [
-#         model.model.model.encoder.encoder.A,
-#         model.model.model.encoder.encoder.z,
-#         model.model.qa_outputs.weight
-#     ],
-#     args.lr_router,
-#     args.lr_prompt
-# )
-# if args.step_size1 is not None and args.step_size2 is not None and args.gamma1 is not None and args.gamma2 is not None:
-#     scheduler = Scheduler(optimizer, args.step_size1, args.step_size2, args.gamma1, args.gamma2)
-# else:
-#     scheduler = None
-args.save_path = f'./downstream_results/PromptTokens{args.n_prompt_tokens}_BatchSize{args.batch_size}_NPrompts{args.n_prompts}_LrRouter{args.lr_router}_LrPrompt{args.lr_prompt}_AnnealParams{args.init_temperature};{args.anneal_rate};{args.anneal_min}'
+optimizer = Optim(
+    [model.model.model.encoder.encoder.router],
+    [
+        model.model.model.encoder.encoder.A,
+        model.model.model.encoder.encoder.z,
+        model.model.qa_outputs.weight
+    ],
+    args.lr_router,
+    args.lr_prompt
+)
+if args.step_size1 is not None and args.step_size2 is not None and args.gamma1 is not None and args.gamma2 is not None:
+    scheduler = Scheduler(optimizer, args.step_size1, args.step_size2, args.gamma1, args.gamma2)
+else:
+    scheduler = None
+# args.save_path = f'./downstream_results/PromptTokens{args.n_prompt_tokens}_BatchSize{args.batch_size}_NPrompts{args.n_prompts}_LrRouter{args.lr_router}_LrPrompt{args.lr_prompt}_AnnealParams{args.init_temperature};{args.anneal_rate};{args.anneal_min}'
 if not os.path.exists(args.save_path):
     os.makedirs(args.save_path, exist_ok=True)
-trainer = MutitaskTrainer.from_checkpoint(args, model, Optim, 1650000)
+trainer = MutitaskTrainer(args, model, optimizer)
+# trainer = MutitaskTrainer.from_checkpoint(args, model, Optim, 1650000)
 # trainer = MutitaskTrainer.from_checkpoint(args, model, optimizer, 999999, scheduler)
 trainer.train()

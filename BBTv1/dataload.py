@@ -496,6 +496,7 @@ class Fudan_tcDataset(TCNLIBasicDataset):
 
 class iflytekDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
+        num = 30
         super().__init__(
             path=f'{self.data_dir}/iflytek/iflytek.py',
             labellist=[
@@ -520,13 +521,19 @@ class iflytekDataset(TCNLIBasicDataset):
                     "艺术",
                     "民航",
                     "铁路",
-                    "工具",
                     "母婴",
                     "驾校",
-                ],
+                    "违章",
+                    "租房",
+                    "买房",
+                    "菜谱",
+                    "支付",
+                    "保险",
+                    "股票"
+                ][:num],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
-            label_mask=[1, 0, 1] * 23 + [1, 0]
+            label_mask=[1, 0, 1] * (num - 1) + [1, 0]
         )
 
     def input_template(self, example):
@@ -964,8 +971,8 @@ Dataset_list = [
 num_datasets = len(Dataset_list)
 
 if __name__ == '__main__':
-    it = get_infinite_train_iterator(32, 50)
-    while True:
-        next(it)
+    a = C3Dataset().get_dataset('downstream')['train']
+    print(BasicDataset.tokenizer.decode(a[0]['input_ids']))
+    print(BasicDataset.tokenizer.decode(a[0]['input_ids'][a[0]['start_positions']: a[0]['end_positions'] + 1]))
 
 

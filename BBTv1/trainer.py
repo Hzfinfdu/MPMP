@@ -217,6 +217,16 @@ class MutitaskTrainer(object):
 
 
 class DownstreamTrainer:
+    dataloaders = {
+        'chnsenticorp': ChnSentiCorpDataset,
+        'iflytek': iflytekDataset,
+        'lcqmc': LCQMCDataset,
+        'tnews': tnewsDataset,
+        'amazon': AmazonDataset,
+        'drcd': DRCDDataset,
+        'cmnli': CMNLIDataset,
+    }
+
     def __init__(self, args, model, optimizer, scheduler=None):
         """
         :param model: 模型
@@ -243,16 +253,17 @@ class DownstreamTrainer:
         self.seed = args.seed
         self.model = model
         self.device = args.device
-        data = iflytekDataset().get_dataset(split='downstream', k_shot=8, seed=self.seed)
+        ds = self.dataloaders[args.task_name]()
+        data = ds.get_dataset(split='downstream', k_shot=args.k_shot, seed=self.seed)
         train_data = data['train']
         eval_data = data['dev']
         print(train_data.__len__())
         print(eval_data.__len__())
-        test_data = iflytekDataset().get_dataset(split='test')
+        test_data = ds.get_dataset(split='test')
         print(test_data.__len__())
         self.trainloader = torch.utils.data.DataLoader(train_data, batch_size=self.batch_size, shuffle=True,
                                       collate_fn=self._collate)
-        self.evalloader = torch.utils.data.DataLoader(eval_data, batch_size=32, shuffle=False,
+        self.evalloader = torch.utils.data.DataLoader(eval_data, batch_size=16, shuffle=False,
                                      collate_fn=self._collate)
         self.testloader = torch.utils.data.DataLoader(test_data, batch_size=32, shuffle=False,
                                      collate_fn=self._collate)
@@ -305,6 +316,7 @@ class DownstreamTrainer:
         self.logger.info("Start training...")
         for i_epoch in tqdm(range(self.n_epochs)):
             self.total_loss = 0.
+            train_acc = 0.
             n_batchs = 0
             for i, iter in enumerate(self.trainloader):
                 for k, v in iter.items():
@@ -315,8 +327,9 @@ class DownstreamTrainer:
                 # self.model.model.qa_outputs.eval()
                 self.model.model.eval()
                 self.model.zero_grad()
-                loss, acc = self.model(**iter)
+                loss, acc = self.model(**iter, is_train=False)
                 self.total_loss += loss.item()
+                train_acc += acc
                 # self.steps += 1
                 n_batchs += 1
                 loss.backward()
@@ -324,12 +337,13 @@ class DownstreamTrainer:
                 self.optim.zero_grad()
                 if self.scheduler is not None:
                     self.scheduler.step()
+            # self._write_summary(f'train loss {self.total_loss / n_batchs} train acc {train_acc / n_batchs} at epoch {i_epoch}')
             self.epochs += 1
             # self._write_summary("train_loss", self.total_loss / n_batchs, i_epoch + 1)
             if i_epoch % self.eval_every == self.eval_every - 1:
                 # self.logger.info(self.model.model.model.encoder.encoder.router)
                 dev_loss, dev_acc = self._eval_epoch()
-                # self._write_summary(eval_str)
+                # self._write_summary(f'validation loss {dev_loss} dev acc {dev_acc} at epoch {i_epoch}')
 
                 if dev_acc > self.best_acc:
                     self.best_acc = dev_acc
@@ -349,6 +363,7 @@ class DownstreamTrainer:
         test_str = f"test loss {test_loss}, acc {test_acc}"
         self.logger.info(test_str)
         self.logger.info("Training finished. Elapse {:.4f} hours.".format((time.time() - total_time) / 3600))
+        return test_acc
 
     def _eval_epoch(self):
         self.model.model.eval()

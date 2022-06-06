@@ -496,6 +496,7 @@ class Fudan_tcDataset(TCNLIBasicDataset):
 
 class iflytekDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
+        num = 20
         super().__init__(
             path=f'{self.data_dir}/iflytek/iflytek.py',
             labellist=[
@@ -520,13 +521,19 @@ class iflytekDataset(TCNLIBasicDataset):
                     "艺术",
                     "民航",
                     "铁路",
-                    "工具",
                     "母婴",
                     "驾校",
-                ],
+                    "违章",
+                    "租房",
+                    "买房",
+                    "菜谱",
+                    "支付",
+                    "保险",
+                    "股票"
+                ][:num],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
-            label_mask=[1, 0, 1] * 23 + [1, 0]
+            label_mask=[1, 0, 1] * (num - 1) + [1, 0]
         )
 
     def input_template(self, example):

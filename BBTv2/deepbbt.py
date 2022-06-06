@@ -226,6 +226,7 @@ Data_config = {
     'ocnli': (OcnliDataset, 11),
     'cmnli': (CMNLIDataset, 11),
     'chnsenticorp': (ChnSentiCorpDataset, 16),
+    'iflytek': (iflytekDataset, 8),
     'thucnews': (THUCNewsDataset, 8),
     'bq': (BQDataset, 16),
     'drcd': (DRCDDataset, 32),

@@ -22,11 +22,11 @@ parser.add_argument("--task_name", default='chnsenticorp', type=str)
 parser.add_argument("--k_shot", default=16, type=int)
 parser.add_argument("--batch_size", default=32, type=int)
 parser.add_argument("--budget_router", default=200, type=int)
-parser.add_argument("--budget_prompt", default=4000, type=int)
+parser.add_argument("--budget_prompt", default=7800, type=int)
 parser.add_argument("--popsize", default=20, type=int)
-parser.add_argument("--bound", default=5, type=int)
+parser.add_argument("--bound", default=0, type=int)
 parser.add_argument("--print_every", default=50, type=int)
-parser.add_argument("--eval_every", default=100, type=int)
+parser.add_argument("--eval_every", default=20, type=int)
 parser.add_argument("--device", default='cuda:0', type=str)
 parser.add_argument("--seed", default=42, type=int)
 parser.add_argument("--init_prompt_path", default=None, type=str)
@@ -140,13 +140,13 @@ class LMForwardAPI:
         # if save_path is not None:
         #     os.makedirs(save_path, exist_ok=True)
 
-    def set_target_param(self, param, is_router=False, interest_index=None):
+    def set_target_param(self, param, is_router=False):
         if is_router:
             self.model.model.model.encoder.encoder.router.data = param.unsqueeze(0)
         else:
-            self.model.model.model.encoder.encoder.z.data[interest_index] = param
+            self.model.model.model.encoder.encoder.z.data = param.tile(8, 1)
 
-    def eval(self, target_param=None, test_data=None, is_router=False, interest_index=None):
+    def eval(self, target_param=None, test_data=None, is_router=False):
         if test_data is not None:
             self.set_target_param(torch.tensor(self.best_router, device=device, dtype=torch.float32), True)
             self.model.model.model.encoder.encoder.z.data = self.best_prompt
@@ -170,7 +170,7 @@ class LMForwardAPI:
                 target_param = self.best_router if is_router else self.best_prompt
             tmp_param = copy.deepcopy(target_param)  # list or numpy.ndarray
 
-            self.set_target_param(torch.tensor(target_param, device=device, dtype=torch.float32), is_router, interest_index)
+            self.set_target_param(torch.tensor(target_param, device=device, dtype=torch.float32), is_router)
             for k, v in train_data.items():
                 if train_data[k] is not None:
                     train_data[k] = v.to(device)
@@ -230,6 +230,7 @@ Data_config = {
     'chnsenticorp': (ChnSentiCorpDataset, 16),
     'thucnews': (THUCNewsDataset, 8),
     'bq': (BQDataset, 16),
+    'iflytek': (iflytekDataset, 8),
     'drcd': (DRCDDataset, 32),
     'c3': (C3Dataset, 32),
     'cmrc2018': (Cmrc2018Dataset, 32),
@@ -298,24 +299,30 @@ activated_prompt_index = (model_forward_api.best_router > 0.).nonzero()[0]
 num_activated = len(activated_prompt_index)
 
 # optimize prompt
+model_forward_api.eval_every = 100
+
 cma_opts = {
     'seed': seed,
     'popsize': popsize,
-    'maxiter': budget_prompt // (popsize * num_activated),
+    'maxiter': budget_prompt // popsize,
     'verbose': -1,
 }
 if bound > 0:
     cma_opts['bounds'] = [-1 * bound, 1 * bound]
 
-es_list = [cma.CMAEvolutionStrategy(model_forward_api.model.model.model.encoder.encoder.z.data[idx].cpu().detach().numpy().tolist(), 0.5, inopts=cma_opts) for idx in activated_prompt_index]
+router = torch.tensor(model_forward_api.best_router, device=device, dtype=torch.float32)
+router = torch.sigmoid(router)
+router = (router / (router.sum(dim=-1, keepdim=True) + 1e-12))
 
-for _ in range(budget_prompt // (popsize * num_activated)):
-    for i, es in enumerate(es_list):
-        solutions = es.ask()
-        fitnesses = [model_forward_api.eval(x, interest_index=activated_prompt_index[i]) for x in solutions]
-        es.tell(solutions, fitnesses)
-        model_forward_api.set_target_param(torch.tensor(es.result.xbest, device=device, dtype=torch.float32), interest_index=activated_prompt_index[i])
+es = cma.CMAEvolutionStrategy(
+    torch.mm(router.unsqueeze(0), model_forward_api.model.model.model.encoder.encoder.z).cpu().detach().numpy().tolist(), 0.1,
+    inopts=cma_opts
+)
 
+while not es.stop():
+    solutions = es.ask()
+    fitnesses = [model_forward_api.eval(x) for x in solutions]
+    es.tell(solutions, fitnesses)
 
 end_time = time.time()
 print('Done. Elapsed time: {} (mins)'.format((end_time - start_time) / 60))

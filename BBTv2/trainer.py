@@ -217,10 +217,24 @@ class MutitaskTrainer(object):
 
 class DownstreamTrainer:
     dataloaders = {
-        'chnsenticorp': ChnSentiCorpDataset(),
-        'iflytek': iflytekDataset(),
-        'lcqmc': LCQMCDataset(),
+        'chnsenticorp': ChnSentiCorpDataset,
+        'iflytek': iflytekDataset,
+        'lcqmc': LCQMCDataset,
+        'tnews': tnewsDataset,
+        'amazon': AmazonDataset,
+        'drcd': DRCDDataset,
+        'cmnli': CMNLIDataset,
+        'thucnews': THUCNewsDataset,
+        'bq': BQDataset,
+        'cmrc2018': Cmrc2018Dataset,
+        'ccpm': CCPMDataset,
+        'cotemfw': CoteMfwDataset,
+        'chnsent': ChnSentiCorpDataset,
+        'ocnli': OcnliDataset,
+        'c3': C3Dataset,
+        'cotebd': CoteBdDataset,
     }
+
     def __init__(self, args, model, optimizer, scheduler=None):
         """
         :param model: 模型
@@ -247,7 +261,7 @@ class DownstreamTrainer:
         self.seed = args.seed
         self.model = model
         self.device = args.device
-        ds = self.dataloaders[args.task_name]
+        ds = self.dataloaders[args.task_name]()
         data = ds.get_dataset(split='downstream', k_shot=args.k_shot, seed=self.seed)
         train_data = data['train']
         eval_data = data['dev']
@@ -302,8 +316,7 @@ class DownstreamTrainer:
         for param in self.model.model.model.parameters():
             param.requires_grad = False
         self.model.model.model.encoder.encoder.router.requires_grad = True
-        self.model.model.model.encoder.encoder.A.requires_grad = True
-        self.model.model.model.encoder.encoder.z.requires_grad = True
+        self.model.model.model.encoder.encoder.prompt.requires_grad = True
         self.model.model.qa_outputs.requires_grad = True
         self.model.to(self.device)
         total_time = time.time()
@@ -347,8 +360,7 @@ class DownstreamTrainer:
             if i_epoch == self.n_epochs - 1: print(
                 f"Current best acc [{self.best_acc}] occurred at step [{self.best_epoch}].")
         state = torch.load(os.path.join(self.save_path, "best.th"))
-        self.model.model.model.encoder.encoder.A = state['A']
-        self.model.model.model.encoder.encoder.z = state['z']
+        self.model.model.model.encoder.encoder.prompt = state['prompt']
         self.model.model.model.encoder.encoder.router = state['router']
         self.model.model.qa_outputs.weight = state['lmhead']
         test_loss, test_acc = self._test_epoch()
@@ -395,8 +407,7 @@ class DownstreamTrainer:
     def _save_model(self):
         save_path = os.path.join(self.save_path, "best.th")
         torch.save({
-            'A': self.model.model.model.encoder.encoder.A,
-            'z': self.model.model.model.encoder.encoder.z,
+            'prompt': self.model.model.model.encoder.encoder.prompt,
             'router': self.model.model.model.encoder.encoder.router,
             'lmhead': self.model.model.qa_outputs.weight,
             'optimizer': self.optim.state_dict(),

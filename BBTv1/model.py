@@ -56,7 +56,7 @@ class PretrainPrompt(nn.Module):
                     })
                 acc = self.metric.compute(predictions=pred_char_span, references=gold_char_span)['f1'] / 100.
             else:
-                nz = (label_mask.nonzero().reshape(-1, 4) - torch.LongTensor([0, 0, 0, 1]).cuda()).reshape(-1, 2).t()
+                nz = (label_mask.nonzero().reshape(-1, 4) - torch.tensor([0, 0, 0, 1], device=input_ids.device, dtype=torch.long)).view(-1, 2).t()
                 try:
                     start_logits = outputs.start_logits[nz[0], nz[1]].view(batch_size, -1, 2)[:, :, 0]
                     end_logits = outputs.end_logits[nz[0], nz[1]].view(batch_size, -1, 2)[:, :, 1]

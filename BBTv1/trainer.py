@@ -184,7 +184,7 @@ class MutitaskTrainer(object):
         print('Recovering...')
         args.n_steps -= steps
         assert args.n_steps > 0, 'n_steps is number of steps in total instead of that of this time.'
-        state = torch.load(os.path.join(args.save_path, 'models', str(steps) + '.th'))
+        state = torch.load(os.path.join(args.save_path, 'best.th'))
         model.model.model.encoder.encoder.A = state['A']
         model.model.model.encoder.encoder.z = state['z']
         model.model.model.encoder.encoder.router = state['router']
@@ -225,6 +225,15 @@ class DownstreamTrainer:
         'amazon': AmazonDataset,
         'drcd': DRCDDataset,
         'cmnli': CMNLIDataset,
+        'thucnews': THUCNewsDataset,
+        'bq': BQDataset,
+        'cmrc2018': Cmrc2018Dataset,
+        'ccpm': CCPMDataset,
+        'cotemfw': CoteMfwDataset,
+        'chnsent': ChnSentiCorpDataset,
+        'ocnli': OcnliDataset,
+        'c3': C3Dataset,
+        'cotebd': CoteBdDataset,
     }
 
     def __init__(self, args, model, optimizer, scheduler=None):
@@ -263,7 +272,7 @@ class DownstreamTrainer:
         print(test_data.__len__())
         self.trainloader = torch.utils.data.DataLoader(train_data, batch_size=self.batch_size, shuffle=True,
                                       collate_fn=self._collate)
-        self.evalloader = torch.utils.data.DataLoader(eval_data, batch_size=16, shuffle=False,
+        self.evalloader = torch.utils.data.DataLoader(eval_data, batch_size=self.batch_size, shuffle=False,
                                      collate_fn=self._collate)
         self.testloader = torch.utils.data.DataLoader(test_data, batch_size=32, shuffle=False,
                                      collate_fn=self._collate)
@@ -308,8 +317,8 @@ class DownstreamTrainer:
         for param in self.model.model.model.parameters():
             param.requires_grad = False
         self.model.model.model.encoder.encoder.router.requires_grad = True
-        self.model.model.model.encoder.encoder.A.requires_grad = True
-        self.model.model.model.encoder.encoder.z.requires_grad = True
+        self.model.model.model.encoder.encoder.prompt.requires_grad = True
+        # self.model.model.model.encoder.encoder.z.requires_grad = True
         self.model.model.qa_outputs.requires_grad = True
         self.model.to(self.device)
         total_time = time.time()
@@ -328,6 +337,7 @@ class DownstreamTrainer:
                 self.model.model.eval()
                 self.model.zero_grad()
                 loss, acc = self.model(**iter, is_train=False)
+                # print('train', loss.item(), acc)
                 self.total_loss += loss.item()
                 train_acc += acc
                 # self.steps += 1
@@ -343,8 +353,8 @@ class DownstreamTrainer:
             if i_epoch % self.eval_every == self.eval_every - 1:
                 # self.logger.info(self.model.model.model.encoder.encoder.router)
                 dev_loss, dev_acc = self._eval_epoch()
+                # print('dev', dev_loss, dev_acc)
                 # self._write_summary(f'validation loss {dev_loss} dev acc {dev_acc} at epoch {i_epoch}')
-
                 if dev_acc > self.best_acc:
                     self.best_acc = dev_acc
                     self.best_epoch = i_epoch
@@ -355,8 +365,8 @@ class DownstreamTrainer:
             if i_epoch == self.n_epochs - 1: print(
                 f"Current best acc [{self.best_acc}] occurred at step [{self.best_epoch}].")
         state = torch.load(os.path.join(self.save_path, "best.th"))
-        self.model.model.model.encoder.encoder.A = state['A']
-        self.model.model.model.encoder.encoder.z = state['z']
+        self.model.model.model.encoder.encoder.prompt = state['prompt']
+        # self.model.model.model.encoder.encoder.z = state['z']
         self.model.model.model.encoder.encoder.router = state['router']
         self.model.model.qa_outputs.weight = state['lmhead']
         test_loss, test_acc = self._test_epoch()
@@ -403,8 +413,7 @@ class DownstreamTrainer:
     def _save_model(self):
         save_path = os.path.join(self.save_path, "best.th")
         torch.save({
-            'A': self.model.model.model.encoder.encoder.A,
-            'z': self.model.model.model.encoder.encoder.z,
+            'prompt': self.model.model.model.encoder.encoder.prompt,
             'router': self.model.model.model.encoder.encoder.router,
             'lmhead': self.model.model.qa_outputs.weight,
             'optimizer': self.optim.state_dict(),

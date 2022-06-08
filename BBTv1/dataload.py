@@ -250,7 +250,7 @@ class OcnliDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path=f'{self.data_dir}/ocnli/ocnli.py',
-            labellist=["矛盾", "中立", "相似"],
+            labellist=["矛盾", "中立", "蕴含"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0, 1, 1, 0]
@@ -278,7 +278,7 @@ class CMNLIDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path=f'{self.data_dir}/CMNLI/cmnli.py',
-            labellist=["矛盾", "中立", "相似"],
+            labellist=["矛盾", "中立", "蕴含"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0, 1, 1, 0]
@@ -574,7 +574,7 @@ class KUAKE_QQRDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path=f'{self.data_dir}/KUAKE_QQR/KUAKE_QQR.py',
-            labellist=["矛盾", "中立", "相似"],
+            labellist=["矛盾", "中立", "蕴含"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0, 1, 1, 0]
@@ -686,7 +686,7 @@ class xnliDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path=f'{self.data_dir}/xnli/xnli_zh.py',
-            labellist=["矛盾", "中立", "相似"],
+            labellist=["矛盾", "中立", "蕴含"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0, 1, 1, 0]

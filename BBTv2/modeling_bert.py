@@ -590,7 +590,7 @@ class BertEncoder(nn.Module):
             else:
                 router = torch.sigmoid(router)  # layer * n_prompts
             router = (router / (router.sum(dim=-1, keepdim=True) + 1e-12)).unsqueeze(1)  # layer * 1 * n_prompts
-            prompt = torch.bmm(self.z, self.A)
+            prompt = torch.bmm(self.z, self.A) if not hasattr(self, 'prompt') else self.prompt
             prompt_embedding = torch.bmm(router, prompt).view(self.config.num_hidden_layers, -1, self.config.hidden_size)  # layer * n_prompt_token * hidden
 
         next_decoder_cache = () if use_cache else None

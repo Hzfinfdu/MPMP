@@ -53,8 +53,6 @@ label_dict = {
 }
 
 num_labels = label_dict[args.task_name]
-if num_labels == 3:
-    args.data_num += 1
 args.k_shot = args.data_num // num_labels if num_labels < 10 else 8
 args.batch_size = args.k_shot * num_labels
 args.step_size1 = args.step_size2 = (args.n_epochs // 2)

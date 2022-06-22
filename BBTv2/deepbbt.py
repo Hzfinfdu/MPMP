@@ -26,7 +26,8 @@ parser.add_argument("--budget_prompt", default=960, type=int)
 parser.add_argument("--popsize", default=20, type=int)
 parser.add_argument("--bound", default=5, type=int)
 parser.add_argument("--print_every", default=50, type=int)
-parser.add_argument("--eval_every", default=100, type=int)
+parser.add_argument("--eval_every1", default=10, type=int)
+parser.add_argument("--eval_every2", default=100, type=int)
 parser.add_argument("--device", default='cuda:0', type=str)
 parser.add_argument("--seed", default=42, type=int)
 parser.add_argument("--init_prompt_path", default=None, type=str)
@@ -68,7 +69,8 @@ else:
 device = args.device
 seed = args.seed
 print_every = args.print_every
-eval_every = args.eval_every
+eval_every1 = args.eval_every1
+eval_every2 = args.eval_every2
 # if task_name in ['mrpc', 'snli', 'qnli', 'rte']:
 #     args.cat_or_add = 'cat'
 cat_or_add = args.cat_or_add
@@ -136,7 +138,7 @@ class LMForwardAPI:
         self.num_call = 0
         # self.save_path = save_path
         self.print_every = print_every
-        self.eval_every = eval_every
+        self.eval_every = eval_every1
         # if save_path is not None:
         #     os.makedirs(save_path, exist_ok=True)
 
@@ -271,7 +273,7 @@ model_forward_api = LMForwardAPI()
 
 start_time = time.time()
 # optimize router
-model_forward_api.eval_every = 20
+model_forward_api.eval_every = eval_every1
 
 bounds_x = [f'x{i}' for i in range(8 * 24)]  # 8 is the number of skilled modules
 bounds_range = [(-5, 5)] * (8 * 24)  # 5 is fixed according to pretrained router's bound
@@ -296,7 +298,7 @@ best_x = np.fromiter(best_dict_x.values(), dtype=float)
 model_forward_api.set_target_param(torch.tensor(model_forward_api.best_router, device=device, dtype=torch.float32), True)
 
 # optimize prompt
-model_forward_api.eval_every = eval_every
+model_forward_api.eval_every = eval_every2
 def get_best_z_composition(idx):
     router = torch.tensor(model_forward_api.best_router, device=device, dtype=torch.float32).view(-1, 8)[idx]
     router = torch.sigmoid(router)

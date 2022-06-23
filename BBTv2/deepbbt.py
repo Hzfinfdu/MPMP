@@ -22,12 +22,14 @@ parser.add_argument("--task_name", default='chnsenticorp', type=str)
 parser.add_argument("--k_shot", default=16, type=int)
 parser.add_argument("--batch_size", default=32, type=int)
 parser.add_argument("--budget_router", default=100, type=int)
-parser.add_argument("--budget_prompt", default=960, type=int)
+parser.add_argument("--budget_prompt", default=3000, type=int)
 parser.add_argument("--popsize", default=20, type=int)
 parser.add_argument("--bound", default=5, type=int)
 parser.add_argument("--print_every", default=50, type=int)
 parser.add_argument("--eval_every1", default=10, type=int)
 parser.add_argument("--eval_every2", default=100, type=int)
+parser.add_argument("--sigma1", default=.5, type=float)
+parser.add_argument("--sigma2", default=.1, type=float)
 parser.add_argument("--device", default='cuda:0', type=str)
 parser.add_argument("--seed", default=42, type=int)
 parser.add_argument("--init_prompt_path", default=None, type=str)
@@ -71,6 +73,8 @@ seed = args.seed
 print_every = args.print_every
 eval_every1 = args.eval_every1
 eval_every2 = args.eval_every2
+sigma1 = args.sigma1
+sigma2 = args.sigma2
 # if task_name in ['mrpc', 'snli', 'qnli', 'rte']:
 #     args.cat_or_add = 'cat'
 cat_or_add = args.cat_or_add
@@ -317,7 +321,7 @@ if bound > 0:
 es_list = [
     cma.CMAEvolutionStrategy(
         get_best_z_composition(idx),
-        0.05,
+        sigma1 if idx == 0 else sigma2,
         inopts=cma_opts
     ) for idx in range(24)
 ]

@@ -21,7 +21,7 @@ parser.add_argument("--device", default='cuda:0', type=str)
 parser.add_argument("--n_prompts", default=8, type=int)
 parser.add_argument("--seed", default=42, type=int)
 parser.add_argument("--data_num", default=32, type=int)
-parser.add_argument("--lr_router", default=1e-2, type=float)
+parser.add_argument("--lr_router", default=3e-3, type=float)
 parser.add_argument("--lr_prompt", default=1e-30, type=float)
 parser.add_argument("--anneal_rate", default=None, type=float)
 parser.add_argument("--anneal_min", default=None, type=float)
@@ -87,12 +87,11 @@ class Scheduler:
         self.scheduler1.step()
         self.scheduler2.step()
 
-args.save_path = save_path
 torch.manual_seed(args.seed)
 
 model = PretrainPrompt(args.intrinsic_dim, args.n_prompt_tokens, 1, args.n_prompts, args.init_temperature)
 # model.prompt_embed_model.load_state_dict(torch.load('/remote-home/zfhe/projects/BBT-prompt_pretrain/results/PromptTokens50_IntrinsicDim500_BatchSize8_NPrompts4_LrRouter0.005_LrPrompt0.001/models/399999.th'))
-state = torch.load('/home/ma-user/work/zfhe/MPMP/BBTv1/results/PromptTokens50_BatchSize32_NPrompts8_LrRouter0.001_LrPrompt0.001_AnnealParams1.0;None;0.1/best.th')
+state = torch.load('/home/ma-user/work/zfhe/best_v1.th')
 # model.model.model.encoder.encoder.A = state['A']
 # model.model.model.encoder.encoder.z = state['z']
 model.model.model.encoder.encoder.prompt = torch.nn.Parameter(data=torch.mm(state['z'], state['A']))

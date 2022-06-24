@@ -87,10 +87,6 @@ class Scheduler:
         self.scheduler1.step()
         self.scheduler2.step()
 
-
-save_path = f'/home/ma-user/work/zfhe/PrefixPretraining/results/PromptTokens50_BatchSize32_NPrompts8_LrRouter0.005_LrPrompt0.001_AnnealParams1.0NoneNone_downstream'
-if not os.path.exists(save_path):
-    os.makedirs(save_path, exist_ok=True)
 args.save_path = save_path
 torch.manual_seed(args.seed)
 

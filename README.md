@@ -3,7 +3,8 @@
 Implementation of Multi-Task Pre-Training of Modular Prompt for Few-Shot Learning([https://arxiv.org/abs/2210.07565](https://arxiv.org/abs/2210.07565)).
 
 ## Release
-Oct 22, 2022. Released the first version of MPMP.
+**Oct 22, 2022**. Released the first version of MPMP.
+
 TODO: Release datasets on Google Drive.
 
 ## Installation

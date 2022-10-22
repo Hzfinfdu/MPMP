@@ -12,9 +12,15 @@ pip install bayesian-optimization
 pip install scipy
 ```
 
-## Example
-dataload.py里面的data_dir要改为对应的路径
-
+## Training
+Use the default parameters in run.py to reproduce the training of MPMP.
 ```bash
-python deepbbt.py<or bbt.py> --init_prompt_path <path to your ckpt, currently not publicly available> --task_name 'thucnews' --seed 13
+sh run.sh
 ```
+
+## Notes
+Datasets are coming soon :)
+
+Our main contribution and implementation details are included in the current public version. While we need to make some modification to our dataset loading scripts and upload them to Google Drive for reproduction. This may take a few days.
+
+After that we will add more information and illustration on our method to this repo.

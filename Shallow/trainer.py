@@ -263,9 +263,9 @@ class DownstreamTrainer:
         self.model = model
         self.device = args.device
         ds = self.dataloaders[args.task_name]()
-        data = ds.get_dataset(split='downstream', k_shot=args.k_shot, seed=self.seed)
-        train_data = data['train']
-        eval_data = data['dev']
+        train_data = ds.get_dataset(split='train', k_shot=args.k_shot, seed=self.seed)
+
+        eval_data = ds.get_dataset(split='validation', k_shot=args.k_shot, seed=self.seed)
         print(train_data.__len__())
         print(eval_data.__len__())
         test_data = ds.get_dataset(split='test')
@@ -312,7 +312,8 @@ class DownstreamTrainer:
     #         print(*args, file=f)
 
     def train(self):
-        for param in self.model.model.model.parameters():
+        self.model.to(self.device)
+        for param in self.model.model.parameters():
             param.requires_grad = False
         for param in self.model.model.model.parameters():
             param.requires_grad = False
@@ -320,7 +321,6 @@ class DownstreamTrainer:
         self.model.model.model.encoder.encoder.prompt.requires_grad = True
         # self.model.model.model.encoder.encoder.z.requires_grad = True
         self.model.model.qa_outputs.requires_grad = True
-        self.model.to(self.device)
         total_time = time.time()
         self.logger.info("Start training...")
         for i_epoch in tqdm(range(self.n_epochs)):
@@ -334,7 +334,7 @@ class DownstreamTrainer:
                 self.model.model.train()
                 # self.model.model.model.eval()
                 # self.model.model.qa_outputs.eval()
-                self.model.model.eval()
+                # self.model.model.eval()
                 self.model.zero_grad()
                 loss, acc = self.model(**iter, is_train=False)
                 # print('train', loss.item(), acc)

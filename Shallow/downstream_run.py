@@ -54,8 +54,9 @@ label_dict = {
 
 num_labels = label_dict[args.task_name]
 args.k_shot = args.data_num // num_labels if num_labels < 10 else 8
-args.batch_size = args.k_shot * num_labels
-args.step_size1 = args.step_size2 = (args.n_epochs // 2)
+
+# args.batch_size = args.k_shot * num_labels
+# args.step_size1 = args.step_size2 = (args.k_shot * num_labels / args.batch_size * args.n_epochs // 2)
 
 
 class Optim:
@@ -88,7 +89,7 @@ class Scheduler:
         self.scheduler2.step()
 
 
-save_path = f'/home/ma-user/work/zfhe/PrefixPretraining/results/PromptTokens50_BatchSize32_NPrompts8_LrRouter0.005_LrPrompt0.001_AnnealParams1.0NoneNone_downstream'
+save_path = f'/remote-home/zfhe/projects/MPMP/BBTv1/downstream_results'
 if not os.path.exists(save_path):
     os.makedirs(save_path, exist_ok=True)
 args.save_path = save_path
@@ -96,15 +97,15 @@ torch.manual_seed(args.seed)
 
 model = PretrainPrompt(args.intrinsic_dim, args.n_prompt_tokens, 1, args.n_prompts, args.init_temperature)
 # model.prompt_embed_model.load_state_dict(torch.load('/remote-home/zfhe/projects/BBT-prompt_pretrain/results/PromptTokens50_IntrinsicDim500_BatchSize8_NPrompts4_LrRouter0.005_LrPrompt0.001/models/399999.th'))
-state = torch.load('/home/ma-user/work/zfhe/MPMP/BBTv1/results/PromptTokens50_BatchSize32_NPrompts8_LrRouter0.001_LrPrompt0.001_AnnealParams1.0;None;0.1/best.th')
+# state = torch.load('/home/ma-user/work/zfhe/MPMP/BBTv1/results/PromptTokens50_BatchSize32_NPrompts8_LrRouter0.001_LrPrompt0.001_AnnealParams1.0;None;0.1/best.th')
 # model.model.model.encoder.encoder.A = state['A']
 # model.model.model.encoder.encoder.z = state['z']
-model.model.model.encoder.encoder.prompt = torch.nn.Parameter(data=torch.mm(state['z'], state['A']))
+# model.model.model.encoder.encoder.prompt = torch.nn.Parameter(data=torch.mm(state['z'], state['A']))
 task_num = -1
-if not task_num < 0:
+if task_num >= 0:  # initialize with a seen task
     model.model.model.encoder.encoder.router.data = state['router'][task_num].unsqueeze(0)
 # model.model.model.encoder.encoder.router = state['router']
-model.model.qa_outputs.weight = state['lmhead']
+# model.model.qa_outputs.weight = state['lmhead']
 optimizer = Optim(
     [model.model.model.encoder.encoder.router],
     [
@@ -116,11 +117,12 @@ optimizer = Optim(
     args.lr_router,
     args.lr_prompt
 )
+args.step_size1 = None
 if args.step_size1 is not None and args.step_size2 is not None and args.gamma1 is not None and args.gamma2 is not None:
     scheduler = Scheduler(optimizer, args.step_size1, args.step_size2, args.gamma1, args.gamma2)
 else:
     scheduler = None
-args.save_path = f'/home/ma-user/work/zfhe/MPMP/BBTv1/downstream_results'
+args.save_path = f'/remote-home/zfhe/projects/MPMP/BBTv1/downstream_results'
 if not os.path.exists(args.save_path):
     os.makedirs(args.save_path, exist_ok=True)
 trainer = DownstreamTrainer(args, model, optimizer, scheduler)

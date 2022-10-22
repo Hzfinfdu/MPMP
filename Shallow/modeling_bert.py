@@ -563,6 +563,11 @@ class BertEncoder(nn.Module):
                 prefix_config['n_prompt_tokens'] * config.hidden_size
             )).uniform_(-bound, bound))
 
+            # self.prompt = nn.Parameter(data=torch.empty((
+            #     prefix_config['n_prompts'],
+            #     prefix_config['n_prompt_tokens'] * config.hidden_size
+            # )).uniform_(-1e-2, 1e-2))
+
     def forward(
         self,
         hidden_states,

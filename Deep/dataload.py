@@ -80,7 +80,7 @@ class InfiniteDataset(torch.utils.data.Dataset):
 class BasicDataset:
     offset = 1000
     tokenizer = BertTokenizerFast.from_pretrained("fnlp/cpt-large")
-    data_dir = '/home/ma-user/work/zfhe/chineseeval'
+    data_dir = '/remote-home/share/zfhe/MPMP_data'
 
     def __init__(self, path, has_test=False, n_prompt_tokens=50):
         self.path = path

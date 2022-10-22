@@ -96,10 +96,10 @@ if args.step_size1 is not None and args.step_size2 is not None and args.gamma1 i
     scheduler = Scheduler(optimizer, args.step_size1, args.step_size2, args.gamma1, args.gamma2)
 else:
     scheduler = None
-# args.save_path = f'./downstream_results/PromptTokens{args.n_prompt_tokens}_BatchSize{args.batch_size}_NPrompts{args.n_prompts}_LrRouter{args.lr_router}_LrPrompt{args.lr_prompt}_AnnealParams{args.init_temperature};{args.anneal_rate};{args.anneal_min}'
+
 if not os.path.exists(args.save_path):
     os.makedirs(args.save_path, exist_ok=True)
-# trainer = MutitaskTrainer(args, model, optimizer)
-trainer = MutitaskTrainer.from_checkpoint(args, model, Optim, 1000000)
+trainer = MutitaskTrainer(args, model, optimizer)
+# trainer = MutitaskTrainer.from_checkpoint(args, model, Optim, 1000000)
 # trainer = MutitaskTrainer.from_checkpoint(args, model, optimizer, 999999, scheduler)
 trainer.train()

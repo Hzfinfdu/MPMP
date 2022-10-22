@@ -1,7 +1,7 @@
 import torch
 from model import PretrainPrompt
 from trainer import MutitaskTrainer, DownstreamTrainer
-from dataload import *
+from dataloader import *
 import torch
 import argparse
 from torch.optim import AdamW

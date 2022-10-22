@@ -13,7 +13,7 @@ from fastNLP import cache_results, Tester, DataSet
 from transformers import BertTokenizer, BartConfig as CPTConfig
 from model import PretrainPrompt
 from sklearn.metrics import f1_score
-from dataload import *
+from dataloader import *
 from bayes_opt import BayesianOptimization
 from tqdm import tqdm
 

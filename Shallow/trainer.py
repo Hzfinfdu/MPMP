@@ -2,7 +2,7 @@ import copy
 import numpy as np
 from modeling_cpt import CPTForConditionalGeneration
 import torch
-from dataload import *
+from dataloader import *
 from tqdm import tqdm
 import os
 import fastNLP

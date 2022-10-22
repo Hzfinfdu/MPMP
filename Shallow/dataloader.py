@@ -2,7 +2,7 @@ from datasets import load_dataset, concatenate_datasets, DatasetDict
 import torch
 from transformers import BertTokenizerFast
 from torch.nn.utils.rnn import pad_sequence
-
+from dataconfig import DataConfig
 
 
 def get_infinite_train_iterator(bsz=32, n_prompt_tokens=50):
@@ -80,7 +80,7 @@ class InfiniteDataset(torch.utils.data.Dataset):
 class BasicDataset:
     offset = 1000
     tokenizer = BertTokenizerFast.from_pretrained("fnlp/cpt-large")
-    data_dir = '/remote-home/share/zfhe/MPMP_data'
+    data_dir = DataConfig.meta_path
 
     def __init__(self, path, has_test=False, n_prompt_tokens=50):
         self.path = path
@@ -250,7 +250,7 @@ class OcnliDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path=f'{self.data_dir}/ocnli/ocnli.py',
-            labellist=["矛盾", "中立", "相似"],
+            labellist=["矛盾", "中立", "蕴含"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0, 1, 1, 0]
@@ -278,7 +278,7 @@ class CMNLIDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path=f'{self.data_dir}/CMNLI/cmnli.py',
-            labellist=["矛盾", "中立", "相似"],
+            labellist=["矛盾", "中立", "蕴含"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0, 1, 1, 0]
@@ -496,7 +496,7 @@ class Fudan_tcDataset(TCNLIBasicDataset):
 
 class iflytekDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
-        num = 20
+        num = 30
         super().__init__(
             path=f'{self.data_dir}/iflytek/iflytek.py',
             labellist=[
@@ -574,7 +574,7 @@ class KUAKE_QQRDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path=f'{self.data_dir}/KUAKE_QQR/KUAKE_QQR.py',
-            labellist=["矛盾", "中立", "相似"],
+            labellist=["矛盾", "中立", "蕴含"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0, 1, 1, 0]
@@ -686,7 +686,7 @@ class xnliDataset(TCNLIBasicDataset):
     def __init__(self, n_prompt_tokens=50):
         super().__init__(
             path=f'{self.data_dir}/xnli/xnli_zh.py',
-            labellist=["矛盾", "中立", "相似"],
+            labellist=["矛盾", "中立", "蕴含"],
             n_prompt_tokens=n_prompt_tokens,
             has_test=False,
             label_mask=[1, 0, 1, 1, 0, 1, 1, 0]
@@ -926,7 +926,7 @@ Dataset_list = [
     PawsDataset,
     CMNLIDataset,
     # ChnSentiCorpDataset,
-    # CSLDataset,
+    CSLDataset,
     THUCNewsDataset,
     BQDataset,
     ChipCtcDataset,
@@ -971,8 +971,8 @@ Dataset_list = [
 num_datasets = len(Dataset_list)
 
 if __name__ == '__main__':
-    it = get_infinite_train_iterator(32, 50)
-    while True:
-        next(it)
+    a = C3Dataset().get_dataset('downstream')['train']
+    print(BasicDataset.tokenizer.decode(a[0]['input_ids']))
+    print(BasicDataset.tokenizer.decode(a[0]['input_ids'][a[0]['start_positions']: a[0]['end_positions'] + 1]))
 
 
